@@ -92,7 +92,7 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_MANUAL;
 		else if ( !strcasecmp( genre, "unpublished" ) )
 			type = TYPE_UNPUBLISHED;
-		else if (!strcasecmp( genre, "conferencePaper" )  ) { /* added to support KTH DiVA */
+		else if (!strcasecmp( genre, "conferencePaper" )  ) { /* added to support KTH DiVA - to handle conference papers */
 		        type = TYPE_INPROCEEDINGS;
 			Da1 fprintf( stderr, "GQMJr %d - genre %s\n", refnum+1, genre ); /* added to debug KTH DiVA */
 			return type;
@@ -106,11 +106,11 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_REPORT;
 		else if ( !strcasecmp( genre, "book chapter" ) )
 			type = TYPE_INBOOK;
-		else if (!strcasecmp( genre, "studentThesis" )  ) { /* added to support KTH DiVA */
+		else if (!strcasecmp( genre, "studentThesis" )  ) { /* added to support KTH DiVA - to handle student theses as books */
 			type = TYPE_BOOK;			    /* treat as a book as it has a series and number */
 			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
 			return type;
-		} else if (!strcasecmp( genre, "monographDoctoralThesis" )  ) { /* added to support KTH DiVA */
+		} else if (!strcasecmp( genre, "monographDoctoralThesis" )  ) { /* added to support KTH DiVA's monograph type of dissertation */
 			type = TYPE_PHDTHESIS;
 			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
 			return type;
@@ -127,7 +127,7 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_MASTERSTHESIS;
 		else  if ( !strcasecmp( genre, "electronic" ) )
 			type = TYPE_ELECTRONIC;
-		else  if ( !strcasecmp( genre, "other" ) ) /* added to support KTH DiVA */
+		else  if ( !strcasecmp( genre, "other" ) ) /* added to support KTH DiVA - to support "other" genre */
 			type = TYPE_MISC;
 
 	}
@@ -401,7 +401,7 @@ out:
 	str_free( &data );
 }
 
-/* added to debug KTH DiVA */
+/* added to debug KTH DiVA - simply prints out the fields of a MODS record as represented internally */
 static void
 print_fields(fields *in)
 {
@@ -827,6 +827,43 @@ append_issue_number( fields *in, fields *out, int *status )
 	}
 }
 
+/* decode roman numerals from https://rosettacode.org/wiki/Roman_numerals/Decode#C */
+int digits[26] = { 0, 0, 100, 500, 0, 0, 0, 0, 1, 1, 0, 50, 1000, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 10, 0, 0 };
+ 
+/* assuming ASCII, do upper case and get index in alphabet. could also be
+        inline int VALUE(char x) { return digits [ (~0x20 & x) - 'A' ]; }
+   if you think macros are evil */
+#define VALUE(x) digits[(~0x20 & (x)) - 'A']
+ 
+int romain_numeral_decode(const char * roman)
+{
+        const char *bigger;
+        int current;
+        int arabic = 0;
+        while (*roman != '\0') {
+                current = VALUE(*roman);
+                /*      if (!current) return -1;
+                        note: -1 can be used as error code; Romans didn't even have zero
+                */
+                bigger = roman;
+ 
+                /* look for a larger digit, like IV or XM */
+                while (VALUE(*bigger) <= current && *++bigger != '\0');
+ 
+                if (*bigger == '\0')
+                        arabic += current;
+                else {
+                        arabic += VALUE(*bigger);
+                        while (roman < bigger)
+                                arabic -= VALUE(* (roman++) );
+                }
+ 
+                roman ++;
+        }
+        return arabic;
+}
+
+/* added to support KTH DiVA - to support a description (from an <extent>) */
 static void
 append_description(int type, fields *in, char *intag, char *outtag, fields *out, int *status )
 {
@@ -844,7 +881,24 @@ append_description(int type, fields *in, char *intag, char *outtag, fields *out,
 		  fprintf( stderr, "GQMJr::append_description description_string=%s\n", description_string);
 		  /* check the description string to see if it of the form roman_numerals,arabic_numerals or arabic_numerals  */
 		  /* if so, then this is a set of page numbers or simply the number of pages in the book */
+
+		  /* check for a comma */
+		  char *commaPtr = strchr(description_string, ',');
+		  if(commaPtr == NULL)
+		    fprintf( stderr, "GQMJr::append_description comma not found\n");
+		  else
+		    fprintf( stderr, "GQMJr::append_description comma found arabic pages %s\n", commaPtr+1 );
+
+		  int position = commaPtr - description_string;
+		  char* romanValue = (char*) malloc((position + 1) * sizeof(char));
+		  memcpy(romanValue, description_string, position);
+		  romanValue[position] = '\0';
 		  
+		  fprintf( stderr, "GQMJr::append_description comma found arabic pages %s\n", romanValue );
+		  int rnv=romain_numeral_decode(romanValue);
+		  if (rnv > 0)
+		    fprintf( stderr, "GQMJr::append_description romain numeral equivalent to %d\n", rnv );
+
 		} else {
 		  fstatus = fields_add( out, outtag, fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
 		  if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
@@ -869,7 +923,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_date        ( in, out, &status );
 	append_simple      ( in, "EDITION",            "edition",   out, &status );
 	append_simple      ( in, "PUBLISHER",          "publisher", out, &status );
-	append_simple      ( in, "PUBLISHER:CORP",     "publisher", out, &status ); /* added to support KTH DiVA */
+	append_simple      ( in, "PUBLISHER:CORP",     "publisher", out, &status ); /* added to support KTH DiVA - to support the publisher of a thesis */
 	append_simple      ( in, "ADDRESS",            "address",   out, &status );
 	append_simple      ( in, "VOLUME",             "volume",    out, &status );
 	append_issue_number( in, out, &status );
@@ -894,8 +948,8 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "EPRINTCLASS",        "primaryClass", out, &status );
 	append_isi         ( in, out, &status );
 	append_simple      ( in, "LANGUAGE",           "language",  out, &status );
-	append_simple      ( in, "EVENT",           "eventtitle",  out, &status ); /* added to support KTH DiVA */
-	append_description (type, in, "DESCRIPTION",     "description", out, &status ); /* added to support KTH DiVA */
+	append_simple      ( in, "EVENT",           "eventtitle",  out, &status ); /* added to support KTH DiVA - the name of a conference */
+	append_description (type, in, "DESCRIPTION",     "description", out, &status ); /* added to support KTH DiVA - to support <extent>*/
 
 	return status;
 }

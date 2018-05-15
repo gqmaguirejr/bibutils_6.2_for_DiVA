@@ -302,7 +302,7 @@ modsin_marcrole_convert( str *s, char *suffix, str *out )
 		{ "orm",                 "ORGANIZER",     0, 0 },
 		{ "patent holder",       "ASSIGNEE",      0, 0 },
 		{ "pth",                 "ASSIGNEE",      0, 0 },
-		{ "pbl",                 "PUBLISHER",      0, 0 } /* added to support KTH DiVA */
+		{ "pbl",                 "PUBLISHER",      0, 0 } /* added to support KTH DiVA - to support the role of publisher of a thesis */
 	};
 	int nroles = sizeof( roles ) / sizeof( roles[0] );
 	int i, nmismatch, n = -1, status = BIBL_OK;
