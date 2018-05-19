@@ -286,6 +286,7 @@ out:
 static int
 modsin_marcrole_convert( str *s, char *suffix, str *out )
 {
+  /* for a list of roles see https://www.loc.gov/marc/relators/relaterm.html */
 	convert roles[] = {
 		{ "author",              "AUTHOR",        0, 0 },
 		{ "aut",                 "AUTHOR",        0, 0 },
@@ -302,7 +303,8 @@ modsin_marcrole_convert( str *s, char *suffix, str *out )
 		{ "orm",                 "ORGANIZER",     0, 0 },
 		{ "patent holder",       "ASSIGNEE",      0, 0 },
 		{ "pth",                 "ASSIGNEE",      0, 0 },
-		{ "pbl",                 "PUBLISHER",      0, 0 } /* added to support KTH DiVA - to support the role of publisher of a thesis */
+		{ "pbl",                 "PUBLISHER",     0, 0 }, /* added to support KTH DiVA - to support the role of publisher of a thesis */
+		{ "ths",                 "THESIS_ADVISOR",     0, 0 } /* added to support KTH DiVA - to support the role of publisher of a thesis */
 	};
 	int nroles = sizeof( roles ) / sizeof( roles[0] );
 	int i, nmismatch, n = -1, status = BIBL_OK;
@@ -1013,11 +1015,73 @@ modsin_identifier( xml *node, fields *info, int level )
 	return BIBL_OK;
 }
 
+/*
+ * For use with KTH DiVA
+ *
+ * In a MODS note element (Anmärkning), there is no description of any attributes in
+ * https://wiki.epc.ub.uu.se/pages/viewpage.action?pageId=27466063
+ * However, in record for urn:nbn:se:kth:diva-61786 I can see four different types of notes:
+ * <note>&lt;p&gt;1983; 752498871; Maguire, Gerald Quentin, Jr; 8313153; 26551011; 303280688; Copyright UMI - Dissertations Publishing 1983; 66569; English; 128 p.; M1: Ph.D.; M3: 8313153. QC 20120120&lt;/p&gt;</note>
+ * <note type="thesis">Diss.  Stockholm : Kungliga Tekniska högskolan, 1983</note>
+ * <note type="degree" lang="en">Degree of Doctor of Philosophy</note><note type="degree" lang="sv">Filosofie doktorsexamen</note>
+ * <note type="venue">University of Utah, Merrill Engineering Building, Salt Lake City, UT, USA</note>
+ * 
+ * In a 2nd cycle thesis (such as urn:nbn:se:kth:diva-172760) I see notes with the following attributes:
+ * <note type="level" lang="swe">Självständigt arbete på avancerad nivå (masterexamen)</note>
+ * <note type="universityCredits" lang="swe">20 poäng / 30 hp</note>
+ * <note type="venue">Seminar room Grimeton, Isafjordsgatan 22, Kista</note>
+*/
+
+static int
+modsin_note( xml *node, fields *info, int level )
+{
+
+	int fstatus, status = BIBL_OK;
+	str s;
+
+	fprintf( stderr, "GQMJr::modsin_note ENTERING\n");
+
+	str language, *lp;
+
+	str_init(&language);
+	lp = xml_getattrib(node, "lang");
+	if ( lp ) {
+	  str_strcpy( &language, lp );
+	  fprintf( stderr, "GQMJr::modsin_note lang=%s\n", language.data);
+	}
+	str_free( &language );
+
+	str_init( &s );
+	if ( node->value && node->value->len > 0 )
+	  str_strcpy( &s, node->value );
+	if ( str_memerr( &s ) ) {
+	  status = BIBL_ERR_MEMERR;
+	  goto out;
+	}
+
+	if ( str_has_value( &s ) ) {
+	  fprintf( stderr, "GQMJr::modsin_note s=%s\n", s.data);
+	  if (xml_tag_attrib( node, "note", "type", "thesis" ))
+	    fstatus = fields_add( info, "NOTES:THESIS", str_cstr( &s ), level );
+	  else
+	    fstatus = fields_add( info, "NOTES", str_cstr( &s ), level );
+
+	  if ( fstatus!=FIELDS_OK ) {
+	    status = BIBL_ERR_MEMERR;
+	    goto out;
+	  }
+	}
+out:
+	str_free( &s );
+	return status;
+}
+
+
 static int
 modsin_mods( xml *node, fields *info, int level )
 {
 	convert simple[] = {
-		{ "note",            "NOTES",    0, 0 },
+	  //    { "note",            "NOTES",    0, 0 },  /* added to support KTH DiVA - <note type="thesis> */
 		{ "abstract",        "ABSTRACT", 0, 0 },
 		{ "bibtex-annote",   "ANNOTE",   0, 0 },
 		{ "typeOfResource",  "RESOURCE", 0, 0 },
@@ -1028,6 +1092,8 @@ modsin_mods( xml *node, fields *info, int level )
 
 	for ( i=0; i<nsimple && found==0; i++ ) {
 		if ( xml_tagexact( node, simple[i].mods ) ) {
+		  /* qqq */
+		  fprintf( stderr, "GQMJr::modsin_mods simple=%s\n", simple[i].mods); /* added to debug KTH DiVA */
 			status = modsin_simple( node, info, simple[i].internal, level );
 			if ( status!=BIBL_OK ) return status;
 			found = 1;
@@ -1043,6 +1109,8 @@ modsin_mods( xml *node, fields *info, int level )
 			status = modsin_asis_corp( node, info, level, ":CORP" );
 		else if ( xml_tag_attrib( node, "name", "type", "conference" ) )
 			status = modsin_event( node, info, level);  /* added to support KTH DiVA - specifically: conference name */
+		else if (xml_tagexact( node, "note") )
+			status = modsin_note( node, info, level);  /* added to support KTH DiVA - specifically: <note type="thesis> */
 		else if ( xml_tagexact( node, "name" ) )
 			status = modsin_asis_corp( node, info, level, ":ASIS" );
 		else if ( xml_tagexact( node, "recordInfo" ) && node->down )

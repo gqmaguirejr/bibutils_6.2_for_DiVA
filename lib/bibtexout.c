@@ -20,7 +20,8 @@
 #include "url.h"
 #include "bibformats.h"
 
-#define Da1  if(1)
+/* the macro below is to comment out or in statements for debugging purposes */
+#define Da1  if (0)
 
 
 static int  bibtexout_write( fields *in, FILE *fp, param *p, unsigned long refnum );
@@ -455,7 +456,7 @@ append_people( fields *in, char *tag, char *ctag, char *atag,
 		  /* qqq */
 		  if (in->tag[i].data) {
 		    fprintf( stderr, "GQMJr::append_people in->tag[%d].data = %s\n", i, in->tag[i].data); /* added to debug KTH DiVA */
-		    fprintf( stderr, "GQMJr::append_people fields_value( in, %d, FIELDS_CHRP ) = %s\n", i, fields_value( in, i, FIELDS_CHRP )); /* added to debug KTH DiVA */
+		    fprintf( stderr, "GQMJr::append_people fields_value( in, %d, FIELDS_CHRP ) = %s\n", i, (char *)fields_value( in, i, FIELDS_CHRP )); /* added to debug KTH DiVA */
 		    
 		  }
 			if ( npeople>0 ) {
@@ -863,6 +864,16 @@ int romain_numeral_decode(const char * roman)
         return arabic;
 }
 
+/* Check is a string is only digits, if so return 1, else 0 */
+int only_arabic_numberal(const char *s)
+{
+    while (*s) {
+        if (isdigit(*s++) == 0) return 0;
+    }
+
+    return 1;
+}
+
 /* added to support KTH DiVA - to support a description (from an <extent>) */
 static void
 append_description(int type, fields *in, char *intag, char *outtag, fields *out, int *status )
@@ -875,31 +886,49 @@ append_description(int type, fields *in, char *intag, char *outtag, fields *out,
 	if ( n!=-1 ) {
 		fields_setused( in, n );
 		if (type == TYPE_BOOK) {  /* added to support KTH DiVA */
-		  fprintf( stderr, "GQMJr::append_description type=%d\n", type);
-		  fprintf( stderr, "GQMJr::append_description n=%d\n", n);
+		  Da1 fprintf( stderr, "GQMJr::append_description type=%d\n", type);
+		  Da1 fprintf( stderr, "GQMJr::append_description intage=%s\n", intag);
+		  Da1 fprintf( stderr, "GQMJr::append_description outtage=%s\n", outtag);
+		  Da1 fprintf( stderr, "GQMJr::append_description n=%d\n", n);
 		  description_string=in->data[n].data;
-		  fprintf( stderr, "GQMJr::append_description description_string=%s\n", description_string);
+		  Da1 fprintf( stderr, "GQMJr::append_description description_string=%s\n", description_string);
 		  /* check the description string to see if it of the form roman_numerals,arabic_numerals or arabic_numerals  */
 		  /* if so, then this is a set of page numbers or simply the number of pages in the book */
 
-		  /* check for a comma */
+		  /* check for a comma; if there is check if the string is of the form roman_numeral,arabic_numeral */
 		  char *commaPtr = strchr(description_string, ',');
-		  if(commaPtr == NULL)
-		    fprintf( stderr, "GQMJr::append_description comma not found\n");
-		  else
-		    fprintf( stderr, "GQMJr::append_description comma found arabic pages %s\n", commaPtr+1 );
+		  if (commaPtr == NULL) {
+		    Da1 fprintf( stderr, "GQMJr::append_description comma not found\n");
+		    // check is the string is just an Arabic numeral
+		    int digitsp = only_arabic_numberal(description_string);
+		    Da1 fprintf( stderr, "GQMJr::append_description digitsp=%d\n", digitsp);
+		    if (digitsp > 0) {
+		      fstatus = fields_add( out, "pages", description_string, LEVEL_MAIN );
+		    } else {	/* otherwise output the description */
+		      fstatus = fields_add( out, outtag, fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
+		      if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
+		    }
+		  } else {	/* there was a comma, now check the two strings */
+		    Da1 fprintf( stderr, "GQMJr::append_description comma found arabic pages %s\n", commaPtr+1 );
 
-		  int position = commaPtr - description_string;
-		  char* romanValue = (char*) malloc((position + 1) * sizeof(char));
-		  memcpy(romanValue, description_string, position);
-		  romanValue[position] = '\0';
+		    int position = commaPtr - description_string;
+		    char* romanValue = (char*) malloc((position + 1) * sizeof(char));
+		    memcpy(romanValue, description_string, position);
+		    romanValue[position] = '\0';
 		  
-		  fprintf( stderr, "GQMJr::append_description comma found arabic pages %s\n", romanValue );
-		  int rnv=romain_numeral_decode(romanValue);
-		  if (rnv > 0)
-		    fprintf( stderr, "GQMJr::append_description romain numeral equivalent to %d\n", rnv );
-
-		} else {
+		    Da1 fprintf( stderr, "GQMJr::append_description comma found arabic numeral for pages %s\n", romanValue );
+		    int rnv=romain_numeral_decode(romanValue);
+		    if (rnv > 0) {
+		      Da1 fprintf( stderr, "GQMJr::append_description romain numeral equivalent to %d\n", rnv );
+		      // fstatus = fields_add( out, outtag, description_string, LEVEL_MAIN );
+		      fstatus = fields_add( out, "pages", description_string, LEVEL_MAIN );
+		      if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
+		    } else {	/* otherwise output the description */
+		      fstatus = fields_add( out, outtag, fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
+		      if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
+		    }
+		  }
+		} else {	/* for non-books, simply output the description */
 		  fstatus = fields_add( out, outtag, fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
 		  if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
 		}
@@ -924,6 +953,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "EDITION",            "edition",   out, &status );
 	append_simple      ( in, "PUBLISHER",          "publisher", out, &status );
 	append_simple      ( in, "PUBLISHER:CORP",     "publisher", out, &status ); /* added to support KTH DiVA - to support the publisher of a thesis */
+	append_people      ( in, "THESIS_ADVISOR", "", "", "supervisor", 0, out, p->format_opts ); /* added to support KTH DiVA - to support the advisor of a thesis */
 	append_simple      ( in, "ADDRESS",            "address",   out, &status );
 	append_simple      ( in, "VOLUME",             "volume",    out, &status );
 	append_issue_number( in, out, &status );
