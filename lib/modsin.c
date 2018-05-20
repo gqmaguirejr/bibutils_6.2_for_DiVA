@@ -30,6 +30,54 @@
 static int modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *reference, int *fcharset );
 static int modsin_processf( fields *medin, char *data, char *filename, long nref, param *p );
 
+/* two help functions to deal with lanugage attributes in two letter form (ISO 639-1 codes) or three letter form (ISO 639-2), specifically  ISO 639-2/b */
+/* This is necessary because the lang attribute in MODS uses ISO 639-2/b, while the xml:lang attribute uses ISO 639-1. */
+/* For the ISO 639-2 standard see https://www.loc.gov/standards/iso639-2/langhome.html */
+static int
+ifEnglish(str *lang)
+{
+  char *targetLanguage = "English";
+
+  fprintf( stderr, "GQMJr::ifEnglish lang=%s\n", lang->data);
+
+  if (str_strlen(lang) == 2) {
+    if (strncmp(str_cstr(lang), "en", 2) == 0)
+      return 1;
+    else
+      return 0;
+  } else if (str_strlen(lang) == 3) {
+    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
+      return 1;
+    else
+      return 0;
+  } else			/* error as it should be 2 or 3 characters long */
+    fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    return 0;
+
+}
+
+ifSwedish(str *lang)
+{
+  char *targetLanguage = "Swedish";
+
+  if (str_strlen(lang) == 2) {
+    if (strncmp(str_cstr(lang), "sv", 2) == 0)
+      return 1;
+    else
+      return 0;
+  } else if (str_strlen(lang) == 3) {
+    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
+      return 1;
+    else
+      return 0;
+  } else			/* error as it should be 2 or 3 characters long */
+    fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    return 0;
+
+}
+
+
+
 /*****************************************************
  PUBLIC: void modsin_initparams()
 *****************************************************/
@@ -727,23 +775,32 @@ out:
 	return status;
 }
 
+/* updated to handle lang attribute for KTH DIVA */
 static int
-modsin_subjectr( xml *node, fields *info, int level )
+modsin_subjectr( xml *node, fields *info, int level, str language)
 {
 	int fstatus, status = BIBL_OK;
+
 	if ( xml_tag_attrib( node, "topic", "class", "primary" ) ) {
 		fstatus = fields_add( info, "EPRINTCLASS", node->value->data, level );
 		if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
 	}
 	else if ( xml_tagexact( node, "topic" ) || xml_tagexact( node, "geographic" )) {
-		fstatus = fields_add( info, "KEYWORD", node->value->data, level );
-		if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
+	  if (ifEnglish(&language))
+	    fstatus = fields_add( info, "KEYWORD:EN", node->value->data, level );
+	  else if (ifSwedish(&language))
+	    fstatus = fields_add( info, "KEYWORD:SV", node->value->data, level );
+	  else
+	    fstatus = fields_add( info, "KEYWORD", node->value->data, level );
+
+	  // fstatus = fields_add( info, "KEYWORD", node->value->data, level ); /* original version */
+	  if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
 	}
 	if ( node->down ) {
-		status = modsin_subjectr( node->down, info, level );
+		status = modsin_subjectr( node->down, info, level, language );
 		if ( status!=BIBL_OK ) return status;
 	}
-	if ( node->next ) status = modsin_subjectr( node->next, info, level );
+	if ( node->next ) status = modsin_subjectr( node->next, info, level, language );
 	return status;
 }
 
@@ -751,7 +808,18 @@ static int
 modsin_subject( xml *node, fields *info, int level )
 {
 	int status = BIBL_OK;
-	if ( node->down ) status = modsin_subjectr( node->down, info, level );
+	str language, *lp;
+
+	fprintf( stderr, "GQMJr::modsin_subject ENTERING\n");
+
+	str_init(&language);
+	lp = xml_getattrib(node, "lang");
+	if ( lp ) {
+	  str_strcpy( &language, lp );
+	  fprintf( stderr, "GQMJr::modsin_subject lang=%s\n", language.data);
+	}
+
+	if ( node->down ) status = modsin_subjectr( node->down, info, level, language );
 	return status;
 }
 
@@ -1065,51 +1133,6 @@ modsin_identifier( xml *node, fields *info, int level )
  * <note type="venue">Seminar room Grimeton, Isafjordsgatan 22, Kista</note>
 */
 
-/* two help functions to deal with lanugage attributes in two letter form (ISO 639-1 codes) or three letter form (ISO 639-2), specifically  ISO 639-2/b */
-/* This is necessary because the lang attribute in MODS uses ISO 639-2/b, while the xml:lang attribute uses ISO 639-1. */
-/* For the ISO 639-2 standard see https://www.loc.gov/standards/iso639-2/langhome.html */
-static int
-ifEnglish(str *lang)
-{
-  char *targetLanguage = "English";
-
-  fprintf( stderr, "GQMJr::ifEnglish lang=%s\n", lang->data);
-
-  if (str_strlen(lang) == 2) {
-    if (strncmp(str_cstr(lang), "en", 2) == 0)
-      return 1;
-    else
-      return 0;
-  } else if (str_strlen(lang) == 3) {
-    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
-      return 1;
-    else
-      return 0;
-  } else			/* error as it should be 2 or 3 characters long */
-    fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
-    return 0;
-
-}
-
-ifSwedish(str *lang)
-{
-  char *targetLanguage = "Swedish";
-
-  if (str_strlen(lang) == 2) {
-    if (strncmp(str_cstr(lang), "sv", 2) == 0)
-      return 1;
-    else
-      return 0;
-  } else if (str_strlen(lang) == 3) {
-    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
-      return 1;
-    else
-      return 0;
-  } else			/* error as it should be 2 or 3 characters long */
-    fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
-    return 0;
-
-}
 
 static int
 modsin_note( xml *node, fields *info, int level )
@@ -1117,10 +1140,9 @@ modsin_note( xml *node, fields *info, int level )
 
 	int fstatus, status = BIBL_OK;
 	str s;
+	str language, *lp;
 
 	fprintf( stderr, "GQMJr::modsin_note ENTERING\n");
-
-	str language, *lp;
 
 	str_init(&language);
 	lp = xml_getattrib(node, "lang");
@@ -1173,13 +1195,59 @@ out:
 	return status;
 }
 
+static int
+modsin_abstract( xml *node, fields *info, int level )
+{
+
+	int fstatus, status = BIBL_OK;
+	str s;
+
+	fprintf( stderr, "GQMJr::modsin_abstract ENTERING\n");
+
+	str language, *lp;
+
+	str_init(&language);
+	lp = xml_getattrib(node, "lang");
+	if ( lp ) {
+	  str_strcpy( &language, lp );
+	  fprintf( stderr, "GQMJr::modsin_abstract lang=%s\n", language.data);
+	}
+
+	str_init( &s );
+	if ( node->value && node->value->len > 0 )
+	  str_strcpy( &s, node->value );
+	if ( str_memerr( &s ) ) {
+	  status = BIBL_ERR_MEMERR;
+	  goto out;
+	}
+
+	if ( str_has_value( &s ) ) {
+	  fprintf( stderr, "GQMJr::modsin_abstract s=%s\n", s.data);
+	  if (ifEnglish(&language))
+	    fstatus = fields_add( info, "ABSTRACT:EN", str_cstr( &s ), level );
+	  else if (ifSwedish(&language))
+	    fstatus = fields_add( info, "ABSTRACT:SV", str_cstr( &s ), level );
+	  else
+	    fstatus = fields_add( info, "ABSTRACT", str_cstr( &s ), level );
+
+	  if ( fstatus!=FIELDS_OK ) {
+	    status = BIBL_ERR_MEMERR;
+	    goto out;
+	  }
+	}
+out:
+	str_free( &s );
+	str_free( &language );
+	return status;
+}
+
 
 static int
 modsin_mods( xml *node, fields *info, int level )
 {
 	convert simple[] = {
 	  //    { "note",            "NOTES",    0, 0 },  /* added to support KTH DiVA - <note type="thesis> */
-		{ "abstract",        "ABSTRACT", 0, 0 },
+	  //    { "abstract",        "ABSTRACT", 0, 0 },
 		{ "bibtex-annote",   "ANNOTE",   0, 0 },
 		{ "typeOfResource",  "RESOURCE", 0, 0 },
 		{ "tableOfContents", "CONTENTS", 0, 0 },
@@ -1206,6 +1274,8 @@ modsin_mods( xml *node, fields *info, int level )
 			status = modsin_asis_corp( node, info, level, ":CORP" );
 		else if ( xml_tag_attrib( node, "name", "type", "conference" ) )
 			status = modsin_event( node, info, level);  /* added to support KTH DiVA - specifically: conference name */
+		else if (xml_tagexact( node, "abstract") )
+			status = modsin_abstract( node, info, level);  /* added to support KTH DiVA - specifically: conference name */
 		else if (xml_tagexact( node, "note") )
 			status = modsin_note( node, info, level);  /* added to support KTH DiVA - specifically: <note type="thesis> */
 		else if ( xml_tagexact( node, "name" ) )

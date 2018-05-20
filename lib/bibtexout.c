@@ -327,7 +327,7 @@ append_simpleall( fields *in, char *intag, char *outtag, fields *out, int *statu
 }
 
 static void
-append_keywords( fields *in, fields *out, int *status )
+append_keywords( fields *in, fields *out, int *status, int lang )
 {
 	str keywords, *word;
 	vplist_index i;
@@ -337,7 +337,12 @@ append_keywords( fields *in, fields *out, int *status )
 	str_init( &keywords );
 	vplist_init( &a );
 
-	fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, "KEYWORD" );
+	if (lang & BIBL_LANGUAGE_ENGLISH )
+	  fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, "KEYWORD:EN" );
+	else if (lang & BIBL_LANGUAGE_SWEDISH )
+	  fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, "KEYWORD:SV" );
+	else 
+	  fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, "KEYWORD" );
 
 	if ( a.n ) {
 
@@ -1043,6 +1048,79 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int lang,
 
 }
 
+/* added to support KTH DiVA - to support abstract with a given/optional language */
+/* if p->langauge is set, then use the chosen language for the note about the the level */
+static void
+append_abstract( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+{
+	int i, fstatus;
+	char extended_intag[256];
+	int found = 0;
+
+	extended_intag[0]='\0';
+
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":EN");
+	  Da1 fprintf( stderr, "GQMJr::append_abstract extended_intag=%s\n", extended_intag);
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":SV");
+	  Da1 fprintf( stderr, "GQMJr::append_abstract extended_intag=%s\n", extended_intag);
+	}
+
+	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	} else {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, intag ) ) {
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+
+	if (found == 0) {	/* if nothing found above, then try looking for the other language */
+	  if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":SV");
+	    Da1 fprintf( stderr, "GQMJr::append_abstract extended_intag=%s\n", extended_intag);
+	  } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":EN");
+	    Da1 fprintf( stderr, "GQMJr::append_abstract extended_intag=%s\n", extended_intag);
+	  }
+
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+
+}
+
+
 
 /* added to support KTH DiVA - to support a description (from an <extent>) */
 static void
@@ -1133,7 +1211,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "VOLUME",             "volume",    out, &status );
 	append_issue_number( in, out, &status );
 	append_pages       ( in, out, p->format_opts, &status );
-	append_keywords    ( in, out, &status );
+	append_keywords    ( in, out, &status, p->language );
 	append_simple      ( in, "CONTENTS",           "contents",  out, &status );
 	append_simple      ( in, "ABSTRACT",           "abstract",  out, &status );
 	append_simple      ( in, "LOCATION",           "location",  out, &status );
@@ -1145,6 +1223,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "NOTES:UNIVERSITYCREDITS",        "credits",    out, &status ); /* KTH DiVA */
 	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, p->language, &status ); /* KTH DiVA */
 	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, p->language, &status );  /* KTH DiVA */
+	append_abstract    ( in, "ABSTRACT",           "abstract", out, p->language, &status );  /* KTH DiVA */
 
 	append_simpleall   ( in, "NOTES",              "note",      out, &status );
 	append_simpleall   ( in, "ANNOTE",             "annote",    out, &status );
