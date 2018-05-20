@@ -142,6 +142,7 @@ bibl_duplicateparams( param *np, param *op )
 	np->writef = op->writef;
 	np->all = op->all;
 	np->nall = op->nall;
+	np->language = op->language; /* added for KTH DiVA */
 
 	return BIBL_OK;
 }

@@ -44,6 +44,8 @@ help( char *progname )
 	fprintf(stderr,"                            (use argument for current list)\n");
 	fprintf(stderr,"  --verbose                 for verbose\n" );
 	fprintf(stderr,"  --debug                   for debug output\n" );
+	fprintf(stderr,"  --english                 to select English language elements\n" );
+	fprintf(stderr,"  --swedish                 to select Swedish language elements\n" );
 	fprintf(stderr,"\n");
 
 	fprintf(stderr,"Citation codes generated from <REFNUM> tag.   See \n");
@@ -102,7 +104,14 @@ process_args( int *argc, char *argv[], param *p )
 		} else if ( args_match( argv[i], "--debug", "" ) ) {
 			p->verbose = 3;
 			subtract = 1;
+		} else if ( args_match( argv[i], "--english", "" ) ) {
+			p->language = BIBL_LANGUAGE_ENGLISH;
+			subtract = 1;
+		} else if ( args_match( argv[i], "--swedish", "" ) ) {
+			p->language = BIBL_LANGUAGE_SWEDISH;
+			subtract = 1;
 		}
+
 		if ( subtract ) {
 			for ( j=i+subtract; j<*argc; ++j )
 				argv[j-subtract] = argv[j];
@@ -113,6 +122,13 @@ process_args( int *argc, char *argv[], param *p )
 		}
 	}
 }
+
+void
+gqm_print_language(param *p)
+{
+  fprintf( stderr, "GQMJr gqm_print_language=%d\n", p->language); /* added to debug KTH DiVA */
+}
+
 
 int 
 main( int argc, char *argv[] )

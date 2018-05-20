@@ -31,6 +31,7 @@ bibprog( int argc, char *argv[], param *p )
 			}
 		} 
 	}
+
 	bibl_write( &b, stdout, p );
 	fflush( stdout );
 	if( p->progname ) fprintf( stderr, "%s: ", p->progname );

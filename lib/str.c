@@ -1039,3 +1039,10 @@ str_is_empty( str *s )
 	if ( !s || s->len==0 ) return 1;
 	return 0;
 }
+
+int
+str_strlen( str *s )
+{
+	if ( !s || s->len==0 ) return 0;
+	return s->len;
+}

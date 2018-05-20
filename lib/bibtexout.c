@@ -46,6 +46,8 @@ bibtexout_initparams( param *p, const char *progname )
 	p->headerf = bibtexout_writeheader;
 	p->footerf = NULL;
 	p->writef  = bibtexout_write;
+	p->language = BIBL_LANGUAGE_ENGLISH; /* default language */
+
 
 	if ( !p->progname && progname )
 		p->progname = strdup( progname );
@@ -455,8 +457,8 @@ append_people( fields *in, char *tag, char *ctag, char *atag,
 		if ( person || corp || asis ) {
 		  /* qqq */
 		  if (in->tag[i].data) {
-		    fprintf( stderr, "GQMJr::append_people in->tag[%d].data = %s\n", i, in->tag[i].data); /* added to debug KTH DiVA */
-		    fprintf( stderr, "GQMJr::append_people fields_value( in, %d, FIELDS_CHRP ) = %s\n", i, (char *)fields_value( in, i, FIELDS_CHRP )); /* added to debug KTH DiVA */
+		    Da1 fprintf( stderr, "GQMJr::append_people in->tag[%d].data = %s\n", i, in->tag[i].data); /* added to debug KTH DiVA */
+		    Da1 fprintf( stderr, "GQMJr::append_people fields_value( in, %d, FIELDS_CHRP ) = %s\n", i, (char *)fields_value( in, i, FIELDS_CHRP )); /* added to debug KTH DiVA */
 		    
 		  }
 			if ( npeople>0 ) {
@@ -828,6 +830,30 @@ append_issue_number( fields *in, fields *out, int *status )
 	}
 }
 
+/* added to support KTH DiVA - to support the publisher of the DiVA record */
+static void
+append_divapublisher( fields *in, char *intag, char *outtag, fields *out, int *status )
+{
+	int n, fstatus;
+	int npublisher;
+
+	npublisher  = fields_find( in, "PUBLISHER",  LEVEL_ANY );
+	Da1 fprintf( stderr, "GQMJr::append_divapublisher = %d\n", npublisher); /* added to debug KTH DiVA */
+
+	n = fields_find( in, intag, LEVEL_ANY );
+	if ( n != -1 ) {
+		fields_setused( in, n );
+		if (npublisher == -1) {/* if there is no publisher specified, turn the DIVAPUBLISHER:CORP into publisher. */
+		  fstatus = fields_add( out, "publisher", fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
+		} else
+		  fstatus = fields_add( out, outtag, fields_value( in, n, FIELDS_CHRP ), LEVEL_MAIN );
+
+		if ( fstatus!=FIELDS_OK ) *status = BIBL_ERR_MEMERR;
+	}
+}
+
+
+
 /* decode roman numerals from https://rosettacode.org/wiki/Roman_numerals/Decode#C */
 int digits[26] = { 0, 0, 100, 500, 0, 0, 0, 0, 1, 1, 0, 50, 1000, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 10, 0, 0 };
  
@@ -873,6 +899,150 @@ int only_arabic_numberal(const char *s)
 
     return 1;
 }
+
+/* added to support KTH DiVA - to support notes of type "degree" */
+/* if p->langauge is set, then use the chosen language for the note about the the degree */
+static void
+append_note_degree( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+{
+	int i, fstatus;
+	int found = 0;
+	char extended_intag[256];
+	extended_intag[0]='\0';
+
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":EN");
+	  fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":SV");
+	  fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	}
+
+	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	} else {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+
+	if (found == 0) {	/* if nothing found above, then try looking for the other language */
+	  if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":SV");
+	    fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	  } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":EN");
+	    fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	  }
+
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+}
+
+/* added to support KTH DiVA - to support notes of type "level" */
+/* if p->langauge is set, then use the chosen language for the note about the the level */
+static void
+append_note_level( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+{
+	int i, fstatus;
+	char extended_intag[256];
+	int found = 0;
+
+	extended_intag[0]='\0';
+
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":EN");
+	  Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  strcpy(extended_intag, intag);
+	  strcat(extended_intag, ":SV");
+	  Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+	}
+
+	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	} else {
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, intag ) ) {
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+
+	if (found == 0) {	/* if nothing found above, then try looking for the other language */
+	  if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":SV");
+	    Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+	  } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	    strcpy(extended_intag, intag);
+	    strcat(extended_intag, ":EN");
+	    Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+	  }
+
+	  for ( i=0; i<in->n; ++i ) {
+	    if ( fields_match_tag( in, i, extended_intag ) ) {
+	      found = 1;
+	      fields_setused( in, i );
+	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      if ( fstatus!=FIELDS_OK ) {
+		*status = BIBL_ERR_MEMERR;
+		return;
+	      }
+	    }
+	  }
+	}
+
+}
+
 
 /* added to support KTH DiVA - to support a description (from an <extent>) */
 static void
@@ -942,6 +1112,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 
 	type = bibtexout_type( in, "", refnum, p );
 	fprintf( stderr, "GQMJr::append_data type = %d\n", type); /* added to debug KTH DiVA */
+	Da1 fprintf( stderr, "GQMJr::append_data p->language = %d\n", p->language); /* added to debug KTH DiVA */
 
 	append_type        ( type, out, &status );
 	append_citekey     ( in, out, p->format_opts, &status );
@@ -952,8 +1123,12 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_date        ( in, out, &status );
 	append_simple      ( in, "EDITION",            "edition",   out, &status );
 	append_simple      ( in, "PUBLISHER",          "publisher", out, &status );
-	append_simple      ( in, "PUBLISHER:CORP",     "publisher", out, &status ); /* added to support KTH DiVA - to support the publisher of a thesis */
-	append_people      ( in, "THESIS_ADVISOR", "", "", "supervisor", 0, out, p->format_opts ); /* added to support KTH DiVA - to support the advisor of a thesis */
+	append_simple      ( in, "PUBLISHER:CORP",     "publisher", out, &status ); /*  KTH DiVA - to support the publisher of a thesis */
+	append_divapublisher( in, "DIVAPUBLISHER:CORP", "divapublisher", out, &status ); /*  KTH DiVA - to support the publisher of the DiVA record */
+	append_people      ( in, "THESIS_ADVISOR", "", "", "supervisor", 0, out, p->format_opts ); /* KTH DiVA - to support the role advisor of a thesis */
+	append_people      ( in, "THESIS_EXAMINER", "", "", "examiner", 0, out, p->format_opts ); /* KTH DiVA - to support the role of examiner of a thesis */
+	append_people      ( in, "THESIS_OTHER:CORP", "", "", "other", 0, out, p->format_opts ); /*  KTH DiVA - to support the role of "other" of a thesis (this seems to represent the research group where the project was done) */
+	append_people      ( in, "THESIS_OPPONENT", "", "", "opponent", 0, out, p->format_opts ); /*  KTH DiVA - to support the role of opponent of a thesis */
 	append_simple      ( in, "ADDRESS",            "address",   out, &status );
 	append_simple      ( in, "VOLUME",             "volume",    out, &status );
 	append_issue_number( in, out, &status );
@@ -965,6 +1140,12 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "DEGREEGRANTOR",      "school",    out, &status );
 	append_simple      ( in, "DEGREEGRANTOR:ASIS", "school",    out, &status );
 	append_simple      ( in, "DEGREEGRANTOR:CORP", "school",    out, &status );
+	append_simple      ( in, "NOTES:THESIS",       "note_thesis",    out, &status );         /* KTH DiVA */
+	append_simple      ( in, "NOTES:VENUE",        "venue",    out, &status );               /* KTH DiVA */
+	append_simple      ( in, "NOTES:UNIVERSITYCREDITS",        "credits",    out, &status ); /* KTH DiVA */
+	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, p->language, &status ); /* KTH DiVA */
+	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, p->language, &status );  /* KTH DiVA */
+
 	append_simpleall   ( in, "NOTES",              "note",      out, &status );
 	append_simpleall   ( in, "ANNOTE",             "annote",    out, &status );
 	append_simple      ( in, "ISBN",               "isbn",      out, &status );
@@ -978,8 +1159,8 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "EPRINTCLASS",        "primaryClass", out, &status );
 	append_isi         ( in, out, &status );
 	append_simple      ( in, "LANGUAGE",           "language",  out, &status );
-	append_simple      ( in, "EVENT",           "eventtitle",  out, &status ); /* added to support KTH DiVA - the name of a conference */
-	append_description (type, in, "DESCRIPTION",     "description", out, &status ); /* added to support KTH DiVA - to support <extent>*/
+	append_simple      ( in, "EVENT",              "eventtitle",  out, &status ); /* added to support KTH DiVA - the name of a conference */
+	append_description (type, in, "DESCRIPTION",   "description", out, &status ); /* added to support KTH DiVA - to support <extent>*/
 
 	return status;
 }

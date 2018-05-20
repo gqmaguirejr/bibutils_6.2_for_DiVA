@@ -303,8 +303,12 @@ modsin_marcrole_convert( str *s, char *suffix, str *out )
 		{ "orm",                 "ORGANIZER",     0, 0 },
 		{ "patent holder",       "ASSIGNEE",      0, 0 },
 		{ "pth",                 "ASSIGNEE",      0, 0 },
-		{ "pbl",                 "PUBLISHER",     0, 0 }, /* added to support KTH DiVA - to support the role of publisher of a thesis */
-		{ "ths",                 "THESIS_ADVISOR",     0, 0 } /* added to support KTH DiVA - to support the role of publisher of a thesis */
+		{ "pbl",                 "DIVAPUBLISHER", 0, 0 }, /* added to support KTH DiVA - to support the role of publisher of a thesis */
+		{ "ths",                 "THESIS_ADVISOR", 0, 0 }, /* added to support KTH DiVA - to support the role of advisor of a thesis */
+		{ "mon",                 "THESIS_EXAMINER",0, 0 }, /* added to support KTH DiVA - to support the role of examiner of a thesis */
+		{ "oth",                 "THESIS_OTHER",0, 0 }, /* added to support KTH DiVA - to support the role of "other" of a thesis */
+		{ "opn",                 "THESIS_OPPONENT",0, 0 }, /* added to support KTH DiVA - to support the role of opponent of a thesis */
+
 	};
 	int nroles = sizeof( roles ) / sizeof( roles[0] );
 	int i, nmismatch, n = -1, status = BIBL_OK;
@@ -347,14 +351,39 @@ static int
 modsin_asis_corp_r( xml *node, str *name, str *role )
 {
 	int status = BIBL_OK;
-	if ( xml_tagexact( node, "namePart" ) ) {
-	  // str_strcpy( name, node->value );
-	  if ( str_has_value( name ) ) str_strcatc( name, ", " );  /* added to support KTH DiVA - accumulate multipart names */
-		
-	  str_strcat( name, node->value );
+	const char former_institution[]="Tidigare Institutioner";
+	int prefix_found = 0;
 
-		if ( str_memerr( name ) ) return BIBL_ERR_MEMERR;
-		fprintf( stderr, "GQMJr::modsin_asis_corp_r string=%s\n", str_cstr(name) ); /* added to debug KTH DiVA */
+#ifdef DEBUG
+	if ( str_has_value( name ) ) 
+	  fprintf( stderr, "GQMJr::modsin_asis_corp_r name=%s\n", name->data ); /* added to debug KTH DiVA */
+	if ( str_has_value( role ) ) 
+	  fprintf( stderr, "GQMJr::modsin_asis_corp_r role=%s\n", role->data ); /* added to debug KTH DiVA */
+#endif
+	if ( xml_tagexact( node, "namePart" ) ) {
+#ifdef DEBUG
+	  fprintf( stderr, "GQMJr::modsin_asis_corp_r node->value->data=%s\n", node->value->data ); /* added to debug KTH DiVA */
+#endif
+	  // str_strcpy( name, node->value );
+	  /* check that the namePart is not of the form "Tidigare Institutioner (före XXXX)", if it is do not add it to the name  */
+	  prefix_found=strncmp((const char *)&former_institution, node->value->data, strlen(former_institution));
+	  if (prefix_found == 0) {
+#ifdef DEBUG
+	    fprintf( stderr, "GQMJr::modsin_asis_corp_r prefix_found=%d\n", prefix_found ); /* added to debug KTH DiVA */
+#endif
+
+	    if ( str_memerr( name ) ) return BIBL_ERR_MEMERR;
+
+	  } else {
+	    if ( str_has_value( name ) ) str_strcatc( name, ", " );  /* added to support KTH DiVA - accumulate multipart names */
+	    str_strcat( name, node->value );
+
+	    if ( str_memerr( name ) ) return BIBL_ERR_MEMERR;
+#ifdef DEBUG
+	    fprintf( stderr, "GQMJr::modsin_asis_corp_r string=%s\n", str_cstr(name) ); /* added to debug KTH DiVA */
+#endif
+	  }
+
 	} else if ( xml_tagexact( node, "roleTerm" ) ) {
 		if ( role->len ) str_addchar( role, '|' );
 		str_strcat( role, node->value );
@@ -602,6 +631,7 @@ modsin_placeterm( xml *node, fields *info, int level, int school )
 {
 	int status = BIBL_OK;
 	str *type;
+	int fstatus;
 
 	type = xml_getattrib( node, "type" );
 	if ( str_has_value( type ) ) {
@@ -609,6 +639,9 @@ modsin_placeterm( xml *node, fields *info, int level, int school )
 			status = modsin_placeterm_text( node, info, level, school );
 		else if ( !strcmp( str_cstr( type ), "code" ) )
 			status = modsin_placeterm_code( node, info, level );
+	} else {		/* added for KTH DiVA - specifically to handle <placeTerm>New York</placeTerm></place>, i.e., without attributes */
+	  fstatus = fields_add( info, "ADDRESS", xml_value( node ), level );
+	  if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
 	}
 
 	return status;
@@ -1032,6 +1065,52 @@ modsin_identifier( xml *node, fields *info, int level )
  * <note type="venue">Seminar room Grimeton, Isafjordsgatan 22, Kista</note>
 */
 
+/* two help functions to deal with lanugage attributes in two letter form (ISO 639-1 codes) or three letter form (ISO 639-2), specifically  ISO 639-2/b */
+/* This is necessary because the lang attribute in MODS uses ISO 639-2/b, while the xml:lang attribute uses ISO 639-1. */
+/* For the ISO 639-2 standard see https://www.loc.gov/standards/iso639-2/langhome.html */
+static int
+ifEnglish(str *lang)
+{
+  char *targetLanguage = "English";
+
+  fprintf( stderr, "GQMJr::ifEnglish lang=%s\n", lang->data);
+
+  if (str_strlen(lang) == 2) {
+    if (strncmp(str_cstr(lang), "en", 2) == 0)
+      return 1;
+    else
+      return 0;
+  } else if (str_strlen(lang) == 3) {
+    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
+      return 1;
+    else
+      return 0;
+  } else			/* error as it should be 2 or 3 characters long */
+    fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    return 0;
+
+}
+
+ifSwedish(str *lang)
+{
+  char *targetLanguage = "Swedish";
+
+  if (str_strlen(lang) == 2) {
+    if (strncmp(str_cstr(lang), "sv", 2) == 0)
+      return 1;
+    else
+      return 0;
+  } else if (str_strlen(lang) == 3) {
+    if (strncmp(iso639_2_from_code(str_cstr(lang)), targetLanguage, strlen(targetLanguage)) == 0)
+      return 1;
+    else
+      return 0;
+  } else			/* error as it should be 2 or 3 characters long */
+    fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    return 0;
+
+}
+
 static int
 modsin_note( xml *node, fields *info, int level )
 {
@@ -1049,7 +1128,6 @@ modsin_note( xml *node, fields *info, int level )
 	  str_strcpy( &language, lp );
 	  fprintf( stderr, "GQMJr::modsin_note lang=%s\n", language.data);
 	}
-	str_free( &language );
 
 	str_init( &s );
 	if ( node->value && node->value->len > 0 )
@@ -1063,7 +1141,25 @@ modsin_note( xml *node, fields *info, int level )
 	  fprintf( stderr, "GQMJr::modsin_note s=%s\n", s.data);
 	  if (xml_tag_attrib( node, "note", "type", "thesis" ))
 	    fstatus = fields_add( info, "NOTES:THESIS", str_cstr( &s ), level );
-	  else
+	  else if (xml_tag_attrib( node, "note", "type", "venue" ))
+	    fstatus = fields_add( info, "NOTES:VENUE", str_cstr( &s ), level );
+	  else if (xml_tag_attrib( node, "note", "type", "universityCredits" ))
+	    fstatus = fields_add( info, "NOTES:UNIVERSITYCREDITS", str_cstr( &s ), level );
+	  else if (xml_tag_attrib( node, "note", "type", "level" )) {
+	    if (ifEnglish(&language))
+	      fstatus = fields_add( info, "NOTES:LEVEL:EN", str_cstr( &s ), level );
+	    else if (ifSwedish(&language))
+	      fstatus = fields_add( info, "NOTES:LEVEL:SV", str_cstr( &s ), level );
+	    else
+	      fstatus = fields_add( info, "NOTES:LEVEL", str_cstr( &s ), level );
+	  } else if (xml_tag_attrib( node, "note", "type", "degree" )) {
+	    if (ifEnglish(&language))
+	      fstatus = fields_add( info, "NOTES:DEGREE:EN", str_cstr( &s ), level );
+	    else if (ifSwedish(&language))
+	      fstatus = fields_add( info, "NOTES:DEGREE:SV", str_cstr( &s ), level );
+	    else
+	      fstatus = fields_add( info, "NOTES:DEGREE", str_cstr( &s ), level );
+	  } else
 	    fstatus = fields_add( info, "NOTES", str_cstr( &s ), level );
 
 	  if ( fstatus!=FIELDS_OK ) {
@@ -1073,6 +1169,7 @@ modsin_note( xml *node, fields *info, int level )
 	}
 out:
 	str_free( &s );
+	str_free( &language );
 	return status;
 }
 

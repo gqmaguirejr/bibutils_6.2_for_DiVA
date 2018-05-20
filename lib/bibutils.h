@@ -78,6 +78,11 @@ extern "C" {
 #define BIBL_XMLOUT_TRUE     STR_CONV_XMLOUT_TRUE
 #define BIBL_XMLOUT_ENTITIES STR_CONV_XMLOUT_ENTITIES
 
+/* added to support KTH DivA - choice of language elements */
+#define BIBL_LANGUAGE_SWEDISH (1)
+#define BIBL_LANGUAGE_ENGLISH (2)
+
+
 typedef unsigned char uchar;
 
 typedef struct param {
@@ -98,6 +103,8 @@ typedef struct param {
 	uchar utf8out;        /* If true, write characters encoded by utf8 */
 	uchar utf8bom;        /* If true, write utf8 byte-order-mark */
 	uchar xmlout;         /* If true, write characters in XML entities */
+
+        uchar language;	      /* added to support KTH DivA - choice of language elements */
 
 	int format_opts; /* options for specific formats */
 	int addcount;  /* add reference count to reference id */

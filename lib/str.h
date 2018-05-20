@@ -103,6 +103,8 @@ int  str_memerr( str *s );
 
 int  str_has_value( str *s );
 int  str_is_empty( str *s );
+/* str_strlen added for KTH DiVA */
+int  str_strlen( str *s );
 
 
 /* #define STR_PARANOIA
