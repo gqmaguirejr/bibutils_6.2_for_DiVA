@@ -529,15 +529,31 @@ out:
 }
 
 static int
-append_title( fields *in, char *bibtag, int level, fields *out, int format_opts )
+append_title( fields *in, char *bibtag, int level, fields *out, int format_opts, int lang )
 {
 	int title = -1,     short_title = -1;
 	int subtitle = -1,  short_subtitle = -1;
 	int use_title = -1, use_subtitle = -1;
 
-	title          = fields_find( in, "TITLE",         level );
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  title          = fields_find( in, "TITLE:EN",         level );
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  title          = fields_find( in, "TITLE:SV",         level );
+	} else
+	  title          = fields_find( in, "TITLE",         level );
+
+	/* need to check that one of the titles was found, if not then check other language */
+
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  subtitle       = fields_find( in, "SUBTITLE:EN",      level );
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  subtitle       = fields_find( in, "SUBTITLE:SV",      level );
+	} else
+	  subtitle       = fields_find( in, "SUBTITLE",      level );
+
+	/* need to check that one of the subtitles was found, if not then check other language */
+
 	short_title    = fields_find( in, "SHORTTITLE",    level );
-	subtitle       = fields_find( in, "SUBTITLE",      level );
 	short_subtitle = fields_find( in, "SHORTSUBTITLE", level );
 
 	if ( title==-1 || ( ( format_opts & BIBL_FORMAT_BIBOUT_SHORTTITLE ) && level==1 ) ) {
@@ -554,43 +570,43 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts 
 }
 
 static void
-append_titles( fields *in, int type, fields *out, int format_opts, int *status )
+append_titles( fields *in, int type, fields *out, int format_opts, int *status, int lang )
 {
 	/* item=main level title */
-	*status = append_title( in, "title", 0, out, format_opts );
+        *status = append_title( in, "title", 0, out, format_opts, lang );
 	if ( *status!=BIBL_OK ) return;
 
 	switch( type ) {
 
 		case TYPE_ARTICLE:
-		*status = append_title( in, "journal", 1, out, format_opts );
+		*status = append_title( in, "journal", 1, out, format_opts, lang );
 		break;
 
 		case TYPE_INBOOK:
-		*status = append_title( in, "bookTitle", 1, out, format_opts );
+		*status = append_title( in, "bookTitle", 1, out, format_opts, lang );
 		if ( *status!=BIBL_OK ) return;
-		*status = append_title( in, "series",    2, out, format_opts );
+		*status = append_title( in, "series",    2, out, format_opts, lang );
 		break;
 
 		case TYPE_INCOLLECTION:
 		case TYPE_INPROCEEDINGS:
-		*status = append_title( in, "booktitle", 1, out, format_opts );
+		*status = append_title( in, "booktitle", 1, out, format_opts, lang );
 		if ( *status!=BIBL_OK ) return;
-		*status = append_title( in, "series",    2, out, format_opts );
+		*status = append_title( in, "series",    2, out, format_opts, lang );
 		break;
 
 		case TYPE_PHDTHESIS:
 		case TYPE_MASTERSTHESIS:
-		*status = append_title( in, "series", 1, out, format_opts );
+		*status = append_title( in, "series", 1, out, format_opts, lang );
 		break;
 
 		case TYPE_BOOK:
 		case TYPE_REPORT:
 		case TYPE_COLLECTION:
 		case TYPE_PROCEEDINGS:
-		*status = append_title( in, "series", 1, out, format_opts );
+		*status = append_title( in, "series", 1, out, format_opts, lang );
 		if ( *status!=BIBL_OK ) return;
-		*status = append_title( in, "series", 2, out, format_opts );
+		*status = append_title( in, "series", 2, out, format_opts, lang );
 		break;
 
 		default:
@@ -908,7 +924,7 @@ int only_arabic_numberal(const char *s)
 /* added to support KTH DiVA - to support notes of type "degree" */
 /* if p->langauge is set, then use the chosen language for the note about the the degree */
 static void
-append_note_degree( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+append_note_degree( fields *in, char *intag, char *outtag, fields *out, int *status, int lang )
 {
 	int i, fstatus;
 	int found = 0;
@@ -979,7 +995,7 @@ append_note_degree( fields *in, char *intag, char *outtag, fields *out, int lang
 /* added to support KTH DiVA - to support notes of type "level" */
 /* if p->langauge is set, then use the chosen language for the note about the the level */
 static void
-append_note_level( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+append_note_level( fields *in, char *intag, char *outtag, fields *out, int *status, int lang )
 {
 	int i, fstatus;
 	char extended_intag[256];
@@ -1051,7 +1067,7 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int lang,
 /* added to support KTH DiVA - to support abstract with a given/optional language */
 /* if p->langauge is set, then use the chosen language for the note about the the level */
 static void
-append_abstract( fields *in, char *intag, char *outtag, fields *out, int lang, int *status )
+append_abstract( fields *in, char *intag, char *outtag, fields *out, int *status, int lang )
 {
 	int i, fstatus;
 	char extended_intag[256];
@@ -1197,7 +1213,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_people      ( in, "AUTHOR",     "AUTHOR:CORP",     "AUTHOR:ASIS",     "author", 0, out, p->format_opts );
 	append_people      ( in, "EDITOR",     "EDITOR:CORP",     "EDITOR:ASIS",     "editor", -1, out, p->format_opts );
 	append_people      ( in, "TRANSLATOR", "TRANSLATOR:CORP", "TRANSLATOR:ASIS", "translator", -1, out, p->format_opts );
-	append_titles      ( in, type, out, p->format_opts, &status );
+	append_titles      ( in, type, out, p->format_opts, &status, p->language );
 	append_date        ( in, out, &status );
 	append_simple      ( in, "EDITION",            "edition",   out, &status );
 	append_simple      ( in, "PUBLISHER",          "publisher", out, &status );
@@ -1221,9 +1237,9 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "NOTES:THESIS",       "note_thesis",    out, &status );         /* KTH DiVA */
 	append_simple      ( in, "NOTES:VENUE",        "venue",    out, &status );               /* KTH DiVA */
 	append_simple      ( in, "NOTES:UNIVERSITYCREDITS",        "credits",    out, &status ); /* KTH DiVA */
-	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, p->language, &status ); /* KTH DiVA */
-	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, p->language, &status );  /* KTH DiVA */
-	append_abstract    ( in, "ABSTRACT",           "abstract", out, p->language, &status );  /* KTH DiVA */
+	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, &status, p->language ); /* KTH DiVA */
+	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, &status, p->language );  /* KTH DiVA */
+	append_abstract    ( in, "ABSTRACT",           "abstract", out, &status, p->language );  /* KTH DiVA */
 
 	append_simpleall   ( in, "NOTES",              "note",      out, &status );
 	append_simpleall   ( in, "ANNOTE",             "annote",    out, &status );

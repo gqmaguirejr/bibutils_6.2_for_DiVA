@@ -50,7 +50,7 @@ ifEnglish(str *lang)
       return 1;
     else
       return 0;
-  } else			/* error as it should be 2 or 3 characters long */
+  } else			/* error as it should be 2 or 3 characters long string */
     fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
     return 0;
 
@@ -70,7 +70,7 @@ ifSwedish(str *lang)
       return 1;
     else
       return 0;
-  } else			/* error as it should be 2 or 3 characters long */
+  } else			/* error as it should be 2 or 3 characters long string */
     fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
     return 0;
 
@@ -299,27 +299,54 @@ modsin_title( xml *node, fields *info, int level )
 	xml *dnode;
 	int abbr;
 
+	str language, *lp;
+	char extended_titletag[256];
+	extended_titletag[0]='\0';
+	char extended_subtitletag[256];
+	extended_subtitletag[0]='\0';
+
+	str_init(&language);
+	lp = xml_getattrib(node, "lang");
+	if ( lp ) {
+	  str_strcpy( &language, lp );
+	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", language.data);
+	}
+
 	dnode = node->down;
 	if ( !dnode ) return status;
 
 	strs_init( &title, &subtitle, NULL );
 	abbr = xml_tag_attrib( node, "titleInfo", "type", "abbreviated" );
 
-	status = modsin_titler( dnode, &title, &subtitle );
+	status = modsin_titler( dnode, &title, &subtitle);
 	if ( status!=BIBL_OK ) goto out;
 
 	if ( str_has_value( &title ) ) {
-		fstatus = fields_add( info, titletag[0][abbr], str_cstr( &title ), level );
-		if ( fstatus!=FIELDS_OK ) { status = BIBL_ERR_MEMERR; goto out; }
+	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", title.data);
+	  strcpy(extended_titletag, titletag[0][abbr]);
+	  if (ifEnglish(&language))
+	    strcat(extended_titletag, ":EN");
+	  else if (ifSwedish(&language))
+	    strcat(extended_titletag, ":SV");
+	    
+	  fstatus = fields_add( info, extended_titletag, str_cstr( &title ), level );
+	  if ( fstatus!=FIELDS_OK ) { status = BIBL_ERR_MEMERR; goto out; }
 	}
 
 	if ( str_has_value( &subtitle ) ) {
-		fstatus = fields_add( info, titletag[1][abbr], str_cstr( &subtitle ), level );
-		if ( fstatus!=FIELDS_OK ) { status = BIBL_ERR_MEMERR; goto out; }
+	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", subtitle.data);
+	  strcpy(extended_subtitletag, titletag[1][abbr]);
+	  if (ifEnglish(&language))
+	    strcat(extended_subtitletag, ":EN");
+	  else if (ifSwedish(&language))
+	    strcat(extended_subtitletag, ":SV");
+
+	  fstatus = fields_add( info, extended_subtitletag, str_cstr( &subtitle ), level );
+	  if ( fstatus!=FIELDS_OK ) { status = BIBL_ERR_MEMERR; goto out; }
 	}
 
 out:
-	strs_free( &title, &subtitle, NULL );
+	strs_free( &title, &subtitle, &language, NULL );
 	return status;
 }
 
@@ -820,6 +847,8 @@ modsin_subject( xml *node, fields *info, int level )
 	}
 
 	if ( node->down ) status = modsin_subjectr( node->down, info, level, language );
+
+	strs_free( &language, NULL );
 	return status;
 }
 
@@ -1190,8 +1219,7 @@ modsin_note( xml *node, fields *info, int level )
 	  }
 	}
 out:
-	str_free( &s );
-	str_free( &language );
+	strs_free(&s, &language, NULL );
 	return status;
 }
 
@@ -1201,8 +1229,6 @@ modsin_abstract( xml *node, fields *info, int level )
 
 	int fstatus, status = BIBL_OK;
 	str s;
-
-	fprintf( stderr, "GQMJr::modsin_abstract ENTERING\n");
 
 	str language, *lp;
 
@@ -1236,8 +1262,8 @@ modsin_abstract( xml *node, fields *info, int level )
 	  }
 	}
 out:
-	str_free( &s );
-	str_free( &language );
+	strs_free(&s,  &language, NULL );
+
 	return status;
 }
 
