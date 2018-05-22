@@ -790,17 +790,19 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	  fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
 
 	  if (language_fieldindex != -1) {
-	    if (!str_is_empty(language))
+	    if (!str_is_empty(language)) {
 	      if (original_lang == 1) {
 		str_strcpy(&completetitle, &en_fulltitle);
 		str_strcatc(&completetitle, " [");
 		str_strcat(&completetitle, &sv_fulltitle );
 		str_strcatc(&completetitle, "]");
-	      } else
+	      } else {
 		str_strcpy(&completetitle, &sv_fulltitle);
 		str_strcatc(&completetitle, " [");
 		str_strcat(&completetitle, &en_fulltitle );
 		str_strcatc(&completetitle, "]");
+	      }
+	    }
 	  } else
 	    fprintf( stderr, "GQMJr::append_title language not defined\n");
 	}
@@ -810,23 +812,66 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	/* qqq1 */
 	/* str_strcat( str *s, str *from ) */
 
-	if ((en_title != -1) && (sv_title == -1) && (original_lang == 1) && (sv_abstract != -1)) {
-	  str_strcatc(&summary_addon, "with Swedish summary");
-	} else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (sv_abstract != -1)) {
-	  str_strcatc(&summary_addon, "with Swedish summary");
-	} else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (en_abstract != -1)) {
-	  str_strcatc(&summary_addon, "with English summary");
-	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
- 	  str_strcatc(&summary_addon, "with English summary");
-	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (en_abstract != -1)) {
- 	  str_strcatc(&summary_addon, "with English summary");
-	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
- 	  str_strcatc(&summary_addon, "with Swedish summary");
-	} else if ((en_title != -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
- 	  str_strcatc(&summary_addon, "with Swedish summary");
-	} else if ((en_title != -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
- 	  str_strcatc(&summary_addon, "with English summary");
-	}	
+	/* addons are split into lang_addon and summary_addon */
+
+	/* lang_addon */
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) ) {
+	    str_strcatc(&lang_addon, "in Swedish");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) ) {
+	    str_strcatc(&lang_addon, "in English");
+	  }
+	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) ) {
+	    str_strcatc(&lang_addon, "på svenska");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) ) {
+	    str_strcatc(&lang_addon, "på engelska");
+	  }
+	} else
+	  fprintf( stderr, "GQMJr::append_title unsupport lanaguage combination in lang_addon\n");
+
+	/* summary_addon */
+	if (lang & BIBL_LANGUAGE_ENGLISH ) {
+	  if ((en_title != -1) && (sv_title == -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with Swedish summary");
+	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with Swedish summary");
+	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with English summary");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with English summary");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with English summary");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with Swedish summary");
+	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with Swedish summary");
+	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "with English summary");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) ) {
+	    /* nothing to do */
+	  }
+	}  else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+	  if ((en_title != -1) && (sv_title == -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) ) {
+	    /* nothing to do */
+	  }
+	}
 
 	if ((!str_is_empty(&lang_addon)) || (!str_is_empty(&summary_addon))) {
 	  str_strcatc(&complete_addon, " (");
