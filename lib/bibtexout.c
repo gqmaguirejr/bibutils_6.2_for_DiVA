@@ -461,7 +461,6 @@ append_people( fields *in, char *tag, char *ctag, char *atag,
 		corp   = ( strcasecmp( in->tag[i].data, ctag ) == 0 );
 		asis   = ( strcasecmp( in->tag[i].data, atag ) == 0 );
 		if ( person || corp || asis ) {
-		  /* qqq */
 		  if (in->tag[i].data) {
 		    Da1 fprintf( stderr, "GQMJr::append_people in->tag[%d].data = %s\n", i, in->tag[i].data); /* added to debug KTH DiVA */
 		    Da1 fprintf( stderr, "GQMJr::append_people fields_value( in, %d, FIELDS_CHRP ) = %s\n", i, (char *)fields_value( in, i, FIELDS_CHRP )); /* added to debug KTH DiVA */
@@ -717,8 +716,9 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	int language_fieldindex  = -1;
 	str *language;
 	str en_fulltitle, sv_fulltitle, fulltitle, completetitle;
-	str lang_addon, summary_addon;
-	strs_init(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, NULL);
+	str lang_addon, summary_addon, complete_addon;
+	strs_init(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, &complete_addon, NULL);
+	int original_lang = -1;
 
 	fprintf( stderr, "GQMJr::append_title bibtag=%s, level=%d\n", bibtag, level); /* added to debug KTH DiVA */
 
@@ -737,6 +737,16 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 
 	language_fieldindex = fields_find( in, "LANGUAGE", LEVEL_MAIN );
 	fprintf( stderr, "GQMJr::append_title language_fieldindex=%d\n", language_fieldindex); /* added to debug KTH DiVA */
+	if (language_fieldindex != -1) {
+	  fprintf( stderr, "GQMJr::append_title language defined\n");
+	  language=fields_value( in, language_fieldindex, FIELDS_STRP );
+	  fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
+	  if (strncmp(str_cstr(language), "English", str_strlen(language)) ==0)
+	    original_lang = 1;
+	  else if (strncmp(str_cstr(language), "Swedish", str_strlen(language)) ==0)
+	    original_lang = 2;
+
+	}
 
 	if ((en_title == -1) && (sv_title == -1) && (title == -1) && (short_title == -1) ) {
 	  fprintf( stderr, "GQMJr::append_title ERROR no title of any kind\n");
@@ -780,12 +790,8 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	  fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
 
 	  if (language_fieldindex != -1) {
-	    fprintf( stderr, "GQMJr::append_title language defined\n");
-
-	    language=fields_value( in, language_fieldindex, FIELDS_STRP );
-	    fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
 	    if (!str_is_empty(language))
-	      if (strncmp(str_cstr(language), "English", str_strlen(language)) == 0) {
+	      if (original_lang == 1) {
 		str_strcpy(&completetitle, &en_fulltitle);
 		str_strcatc(&completetitle, " [");
 		str_strcat(&completetitle, &sv_fulltitle );
@@ -801,7 +807,40 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 
  addons:
 	/* deal with addons */
+	/* qqq1 */
 	/* str_strcat( str *s, str *from ) */
+
+	if ((en_title != -1) && (sv_title == -1) && (original_lang == 1) && (sv_abstract != -1)) {
+	  str_strcatc(&summary_addon, "with Swedish summary");
+	} else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (sv_abstract != -1)) {
+	  str_strcatc(&summary_addon, "with Swedish summary");
+	} else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (en_abstract != -1)) {
+	  str_strcatc(&summary_addon, "with English summary");
+	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+ 	  str_strcatc(&summary_addon, "with English summary");
+	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (en_abstract != -1)) {
+ 	  str_strcatc(&summary_addon, "with English summary");
+	} else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+ 	  str_strcatc(&summary_addon, "with Swedish summary");
+	} else if ((en_title != -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
+ 	  str_strcatc(&summary_addon, "with Swedish summary");
+	} else if ((en_title != -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
+ 	  str_strcatc(&summary_addon, "with English summary");
+	}	
+
+	if ((!str_is_empty(&lang_addon)) || (!str_is_empty(&summary_addon))) {
+	  str_strcatc(&complete_addon, " (");
+	  if (!str_is_empty(&lang_addon)) {
+	    str_strcat(&complete_addon, &lang_addon); 
+	  }
+	  if (!str_is_empty(&summary_addon)) {
+	    str_strcat(&complete_addon, &summary_addon); 
+	  }
+	  str_strcatc(&complete_addon, ")");
+
+	  str_strcat(&completetitle, &complete_addon);
+	}
+
 
 	/* if there is no title, then set error code and goto out, otherwise store the completetitle */
 	if ( str_memerr(&completetitle) ) {
