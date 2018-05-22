@@ -30,7 +30,7 @@
 static int modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *reference, int *fcharset );
 static int modsin_processf( fields *medin, char *data, char *filename, long nref, param *p );
 
-/* two help functions to deal with lanugage attributes in two letter form (ISO 639-1 codes) or three letter form (ISO 639-2), specifically  ISO 639-2/b */
+/* two helper functions to deal with lanugage attributes in two letter form (ISO 639-1 codes) or three letter form (ISO 639-2), specifically  ISO 639-2/b */
 /* This is necessary because the lang attribute in MODS uses ISO 639-2/b, while the xml:lang attribute uses ISO 639-1. */
 /* For the ISO 639-2 standard see https://www.loc.gov/standards/iso639-2/langhome.html */
 static int
@@ -52,10 +52,12 @@ ifEnglish(str *lang)
       return 0;
   } else			/* error as it should be 2 or 3 characters long string */
     fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
-    return 0;
+
+  return 0;
 
 }
 
+static int
 ifSwedish(str *lang)
 {
   char *targetLanguage = "Swedish";
@@ -72,7 +74,8 @@ ifSwedish(str *lang)
       return 0;
   } else			/* error as it should be 2 or 3 characters long string */
     fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
-    return 0;
+
+  return 0;
 
 }
 
@@ -559,13 +562,23 @@ modsin_personr( xml *node, str *familyname, str *givenname, str *suffix )
 		if ( str_memerr( familyname ) ) status = BIBL_ERR_MEMERR;
 	}
 
-	else if ( xml_tag_attrib( node, "namePart", "type", "suffix") ||
-	          xml_tag_attrib( node, "namePart", "type", "termsOfAddress" )) {
+	else if ( xml_tag_attrib( node, "namePart", "type", "suffix")
+		  /* note that one does not generally include termsOfAddress in a bibliographic entry */
+		  /* if you need to, then define the conditional */
+#ifdef IncludetermsOfAddress
+		  || xml_tag_attrib( node, "namePart", "type", "termsOfAddress")
+#endif
+		) {
 		if ( str_has_value( suffix ) ) str_addchar( suffix, ' ' );
 		str_strcat( suffix, node->value );
 		if ( str_memerr( suffix ) ) status = BIBL_ERR_MEMERR;
 	}
 
+#ifndef IncludetermsOfAddress
+	else if ( xml_tag_attrib( node, "namePart", "type", "termsOfAddress")) {
+		/* no nothing */
+		  }
+#endif
 	else if (xml_tag_attrib( node, "namePart", "type", "date") ){
 		/* no nothing */
 	}

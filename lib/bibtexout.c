@@ -82,6 +82,7 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 	for ( i=0; i<in->n; ++i ) {
 		tag = fields_tag( in, i, FIELDS_CHRP );
 		if ( strcasecmp( tag, "GENRE" ) && strcasecmp( tag, "NGENRE" ) ) continue;
+
 		genre = fields_value( in, i, FIELDS_CHRP );
 		Da1 fprintf( stderr, "GQMJr %d - genre %s\n", refnum+1, genre ); /* added to debug KTH DiVA */
 		level = in->level[i];
@@ -528,12 +529,149 @@ out:
 	return ret;
 }
 
+/* for use with KTH DIVA - adapted from append_title_chosen() to simply return the combined fulltile,
+ * rather than storing it in a field */
+static int
+construct_title_chosen( fields *in, char *bibtag, fields *out, int nmainttl, int nsubttl, str *fulltitle )
+{
+	str *mainttl = NULL, *subttl = NULL;
+	int ret = BIBL_OK;
+
+	if ( nmainttl!=-1 ) {
+		mainttl = fields_value( in, nmainttl, FIELDS_STRP );
+		fields_setused( in, nmainttl );
+	}
+
+	if ( nsubttl!=-1 ) {
+		subttl = fields_value( in, nsubttl, FIELDS_STRP );
+		fields_setused( in, nsubttl );
+	}
+
+	title_combine( fulltitle, mainttl, subttl );
+
+	if ( str_memerr( fulltitle ) ) {
+		ret = BIBL_ERR_MEMERR;
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+
+
+/*
+ * In KTH's DiVA there are a number of works that have titles in multiple languages,
+ * hence there is a need to decide how these titles should appear in the text.
+ *
+ * Actually a number of theses at KTH have the title in two languages and a very large number of
+ * official Swedish government documents written in Swedish have both and Swedish & English title
+ * and an English summary.  (We currently can report the title in Swedish and English in Ladok,
+ *  but not everyone does.) In DiVA the alternate title have the form: 
+ *    <titleInfo type="alternative" lang="eng"><title>xxxx</title><subTitle>yyyy</subTitle></titleInfo> 
+ *
+ * Consider the case of a document written in English (i.e., the LANGUAGE file is set to "English"),
+ * then this document should have an English title. Similarly if the LANGUAGE is "Swedish" and the
+ * document has a Swedish title, then we would expect this to appear in the reference.
+ *
+ * However, if the document is being used as a reference in a document being written in English,
+ * then one might expect to see the title also appear in English as well as in Swedish:
+ * For example Patrik Olsson's Master's thesis (from urn:nbn:se:kth:diva-205573): 
+ *   Virtuell verklighet för förmedling av ett företags produkter: En undersökning av kunders beslutsprocess
+ *   i valet av köksmoduler gjord ur ett lärandeperspektiv [Virtual Reality for communicating a company's
+ *   products: A survey of customers' decision-making in the process of choosing kitchen modules made from
+ *   a learning perspective] (in Swedish with English summary)
+ *
+ * The general form (based upon The Chicago Manual of Style and 
+ * "General guide for Referencing and avoiding plagiarism: Foreign Language Material"
+ * topc: Can I use Foreign Language material? AIT Library Guides, Athlone Institute of Technology,
+ * Dublin Road, Athlone, Co. Westmeath, Ireland. 16 January 2018
+ * https://ait.libguides.com/c.php?g=280093&p=1866392) is:
+ *    original_title [translated_title] (in orignal_language with translated_language summary)
+ *
+ * The corresponding form in Swedish would be:
+ *    original_title [translated_title] (på svenska med engelska sammanfattning)
+ *
+ * The [xxx] (yyyy) can be generated via BibLaTex's field titleaddon={[xxx] (yyyy)}
+ *  (the above is from "bath-bst: Harvard referencing style as recommended by the University of Bath Library"
+ *    Maintainer: Alex Ball, Package v2.0 – 23 April 2018
+ *    http://mirror.hmc.edu/ctan/biblio/bibtex/contrib/bath-bst/bath-bst-v1.pdf  )
+ *
+ * Note that the [xxxx] denotes the translation,
+ * while the (yyyy) describes the original language with _optional_ description of whether
+ * there is a summary in the translated language.
+ * 
+ * This leads to the following interesting combinations
+ * (where EN_title or SV_title means the existence of title and possible subtitle in the indicated language;
+ *  LANGUAGE=xxxx indicates the original language
+ *  ABSTRACT:xx indicates the existence of an abstract in the indicated language;
+ * ):
+ * English:
+ *      English_title                                                          EN_title          LANGUAGE=English
+ *      English_title                                                          EN_title          LANGUAGE=English ABSTRACT:EN
+ *      English_title (with Swedish summary)                                   EN_title          LANGUAGE=English ABSTRACT:SV
+ *      English_title (in Swedish)                                             EN_title          LANGUAGE=Swedish
+ *      English_title (in Swedish with English summary)                        EN_title          LANGUAGE=Swedish ABSTRACT:EN
+ *      English_title (in Swedish with Swedish summary)                        EN_title          LANGUAGE=Swedish ABSTRACT:SV
+ *
+ *      Swedish_title                                                                   SV_title LANGUAGE=Swedish
+ *      Swedish_title (with English summary)                                            SV_title LANGUAGE=Swedish ABSTRACT:EN
+ *      Swedish_title                                                                   SV_title LANGUAGE=Swedish ABSTRACT:SV
+ *      Swedish_title (in English)                                                      SV_title LANGUAGE=English
+ *      Swedish_title (in English with English summary)                                 SV_title LANGUAGE=English ABSTRACT:EN
+ *      Swedish_title (in English with Swedish summary)                                 SV_title LANGUAGE=English ABSTRACT:SV
+ *
+ *      English_title [Swedish_title]                                          EN_title SV_title LANGUAGE=English
+ *      English_title [Swedish_title]                                          EN_title SV_title LANGUAGE=English ABSTRACT:EN
+ *      English_title [Swedish_title] (with Swedish summary)                   EN_title SV_title LANGUAGE=English ABSTRACT:SV
+ *
+ *      Swedish_title [English_title]                                          EN_title SV_title LANGUAGE=Swedish
+ *      Swedish_title [English_title] (with English summary)                   EN_title SV_title LANGUAGE=Swedish ABSTRACT:EN
+ *      Swedish_title [English_title]                                          EN_title SV_title LANGUAGE=Swedish ABSTRACT:SV
+ *
+ *
+ * Swedish:
+ *      English_title                                                          EN_title          LANGUAGE=English
+ *      English_title                                                          EN_title          LANGUAGE=English ABSTRACT:EN
+ *      English_title (med svenska sammanfattning)                             EN_title          LANGUAGE=English ABSTRACT:SV
+ *      English_title (på svenska)                                             EN_title          LANGUAGE=Swedish
+ *      English_title (på svenska med engelska sammanfattning)                 EN_title          LANGUAGE=Swedish ABSTRACT:EN
+ *      English_title (på svenska med svenska sammanfattning)                  EN_title          LANGUAGE=Swedish ABSTRACT:SV
+ *
+ *      Swedish_title                                                                    SV_title LANGUAGE=Swedish
+ *      Swedish_title (med engelska sammanfattning)                                      SV_title LANGUAGE=Swedish ABSTRACT:EN
+ *      Swedish_title                                                                    SV_title LANGUAGE=Swedish ABSTRACT:SV
+ *      Swedish_title (på engelska)                                                      SV_title LANGUAGE=English
+ *      Swedish_title (på engelska med engelska sammanfattning)                          SV_title LANGUAGE=English ABSTRACT:EN
+ *      Swedish_title (på engelska med svenska sammanfattning)                           SV_title LANGUAGE=English ABSTRACT:SV
+
+ *
+ *      English_title [Swedish_title]                                           EN_title SV_title LANGUAGE=English
+ *      English_title [Swedish_title]                                           EN_title SV_title LANGUAGE=English ABSTRACT:EN
+ *      English_title [Swedish_title] (med svenska sammanfattning)              EN_title SV_title LANGUAGE=English ABSTRACT:SV
+ *
+ *      Swedish_title [English_title]                                           EN_title SV_title LANGUAGE=Swedish
+ *      Swedish_title [English_title] (med engelska sammanfattning)             EN_title SV_title LANGUAGE=Swedish ABSTRACT:EN
+ *      Swedish_title [English_title]                                           EN_title SV_title LANGUAGE=Swedish ABSTRACT:SV
+ *
+ * Note that in the above there are some cases which reduce down to a simpler one, hence they are not shown. For example,
+ *      English_title (with Swedish summary)                                   EN_title          LANGUAGE=English ABSTRACT:SV ABSTRACT:EN
+ * does not have to be shown as having an English summary, since this is to be expected for a document in English.
+ *
+ * It is also useful to see that the pattern is simple, when these are two titles you choose as the original title the one matching the value of LANGUAGE.
+ * Generate the other information: "in Swedish" or  "in English" when the LANGUAGE does not match the single title.
+ * Generate the other information: "with Swedish Summary" or  "with English Summary" when the LANGUAGE does not match the single title.
+ *
+ */
+
 static int
 append_title( fields *in, char *bibtag, int level, fields *out, int format_opts, int lang )
 {
+
+#ifdef NEVER
+	int use_title = -1, use_subtitle = -1;
 	int title = -1,     short_title = -1;
 	int subtitle = -1,  short_subtitle = -1;
-	int use_title = -1, use_subtitle = -1;
 
 	if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	  title          = fields_find( in, "TITLE:EN",         level );
@@ -567,6 +705,118 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	}
 
 	return append_title_chosen( in, bibtag, out, use_title, use_subtitle );
+#endif
+	int status, ret = BIBL_OK;
+
+	int title    = -1, subtitle = -1;
+	int short_title = -1, short_subtitle = -1;
+
+	int en_title    = -1, sv_title = -1;
+	int en_subtitle = -1, sv_subtitle = -1;
+	int en_abstract = -1, sv_abstract = -1;
+	int language_fieldindex  = -1;
+	str *language;
+	str en_fulltitle, sv_fulltitle, fulltitle, completetitle;
+	str lang_addon, summary_addon;
+	strs_init(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, NULL);
+
+	fprintf( stderr, "GQMJr::append_title bibtag=%s, level=%d\n", bibtag, level); /* added to debug KTH DiVA */
+
+	title       = fields_find( in, "TITLE",         level );
+	en_title    = fields_find( in, "TITLE:EN",      level );
+	sv_title    = fields_find( in, "TITLE:SV",      level );
+	short_title = fields_find( in, "SHORTTITLE",    level );
+
+	subtitle       = fields_find( in, "SUBTITLE",      level );
+	en_subtitle    = fields_find( in, "SUBTITLE:EN",   level );
+	sv_subtitle    = fields_find( in, "SUBTITLE:SV",   level );
+	short_subtitle = fields_find( in, "SHORTSUBTITLE", level );
+
+	en_abstract = fields_find( in, "ABSTRACT:EN",      level );
+	sv_abstract = fields_find( in, "ABSTRACT:SV",      level );
+
+	language_fieldindex = fields_find( in, "LANGUAGE", LEVEL_MAIN );
+	fprintf( stderr, "GQMJr::append_title language_fieldindex=%d\n", language_fieldindex); /* added to debug KTH DiVA */
+
+	if ((en_title == -1) && (sv_title == -1) && (title == -1) && (short_title == -1) ) {
+	  fprintf( stderr, "GQMJr::append_title ERROR no title of any kind\n");
+	  ret = BIBL_ERR_MEMERR;
+	  goto out;
+	}
+
+	/* only a shorttile is available, use it appropriately */
+	if ((en_title == -1) && (sv_title == -1) && (title == -1) && (short_title != -1) ) {
+	  if ((format_opts & BIBL_FORMAT_BIBOUT_SHORTTITLE) && level==1) {
+	    construct_title_chosen(in, bibtag, out, short_title,  short_subtitle, &fulltitle );
+	    str_strcpy(&completetitle, &fulltitle);
+	    goto addons;
+	  }
+	}
+
+	/* only a title is avaialble, so use it */
+	if ((en_title == -1) && (sv_title == -1) && (title != -1)) {
+	  construct_title_chosen(in, bibtag, out, title, subtitle, &fulltitle );
+	  str_strcpy(&completetitle, &fulltitle);
+	  goto addons;
+	}
+
+	/* if the title is only available in one language, just use it! */
+	if ((en_title == -1) && (sv_title != -1)) {
+	  construct_title_chosen(in, bibtag, out, sv_title, sv_subtitle, &sv_fulltitle );
+	  str_strcpy(&completetitle, &sv_fulltitle);
+	  goto addons;
+	} else if ((en_title != -1) && (sv_title == -1)) {
+	  construct_title_chosen(in, bibtag, out, en_title, en_subtitle, &en_fulltitle );
+	  str_strcpy( &completetitle, &en_fulltitle);
+	  goto addons;
+	}
+
+	/* based upon the language of the document choose the appropriate of the titles */
+	if ((en_title != -1) && (sv_title != -1)) {	
+	  construct_title_chosen(in, bibtag, out, en_title, en_subtitle, &en_fulltitle );
+	  construct_title_chosen(in, bibtag, out, sv_title, sv_subtitle, &sv_fulltitle );
+
+	  fprintf( stderr, "GQMJr::append_title en_fulltitle=%s\n", en_fulltitle.data);
+	  fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
+
+	  if (language_fieldindex != -1) {
+	    fprintf( stderr, "GQMJr::append_title language defined\n");
+
+	    language=fields_value( in, language_fieldindex, FIELDS_STRP );
+	    fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
+	    if (!str_is_empty(language))
+	      if (strncmp(str_cstr(language), "English", str_strlen(language)) == 0) {
+		str_strcpy(&completetitle, &en_fulltitle);
+		str_strcatc(&completetitle, " [");
+		str_strcat(&completetitle, &sv_fulltitle );
+		str_strcatc(&completetitle, "]");
+	      } else
+		str_strcpy(&completetitle, &sv_fulltitle);
+		str_strcatc(&completetitle, " [");
+		str_strcat(&completetitle, &en_fulltitle );
+		str_strcatc(&completetitle, "]");
+	  } else
+	    fprintf( stderr, "GQMJr::append_title language not defined\n");
+	}
+
+ addons:
+	/* deal with addons */
+	/* str_strcat( str *s, str *from ) */
+
+	/* if there is no title, then set error code and goto out, otherwise store the completetitle */
+	if ( str_memerr(&completetitle) ) {
+	  ret = BIBL_ERR_MEMERR;
+	  goto out;
+	}
+
+	if ( str_has_value(&completetitle) ) {
+	  status = fields_add( out, bibtag, str_cstr(&completetitle), LEVEL_MAIN );
+	  if ( status!=FIELDS_OK ) ret = BIBL_ERR_MEMERR;
+	}
+
+ out:
+	strs_free(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, NULL );	
+	return ret;
 }
 
 static void
