@@ -1571,6 +1571,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "NOTES:THESIS",       "note_thesis",    out, &status );         /* KTH DiVA */
 	append_simple      ( in, "NOTES:VENUE",        "venue",    out, &status );               /* KTH DiVA */
 	append_simple      ( in, "NOTES:UNIVERSITYCREDITS",        "credits",    out, &status ); /* KTH DiVA */
+	append_simple      ( in, "NOTES:COOPERATION",  "cooperation",    out, &status );               /* KTH DiVA */
 	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, &status, p->language ); /* KTH DiVA */
 	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, &status, p->language );  /* KTH DiVA */
 	append_abstract    ( in, "ABSTRACT",           "abstract", out, &status, p->language );  /* KTH DiVA */

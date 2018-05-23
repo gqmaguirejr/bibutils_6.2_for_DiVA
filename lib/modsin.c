@@ -1173,7 +1173,12 @@ modsin_identifier( xml *node, fields *info, int level )
  * <note type="level" lang="swe">Självständigt arbete på avancerad nivå (masterexamen)</note>
  * <note type="universityCredits" lang="swe">20 poäng / 30 hp</note>
  * <note type="venue">Seminar room Grimeton, Isafjordsgatan 22, Kista</note>
-*/
+ *
+ * An additional note type:
+ * <note type="cooperation">Stockholms universitet</note>
+ * This indicates that the thesis project was done in cooperation with Stockholms universitet.
+ *
+ */
 
 
 static int
@@ -1209,6 +1214,8 @@ modsin_note( xml *node, fields *info, int level )
 	    fstatus = fields_add( info, "NOTES:VENUE", str_cstr( &s ), level );
 	  else if (xml_tag_attrib( node, "note", "type", "universityCredits" ))
 	    fstatus = fields_add( info, "NOTES:UNIVERSITYCREDITS", str_cstr( &s ), level );
+	  else if (xml_tag_attrib( node, "note", "type", "cooperation" ))
+	    fstatus = fields_add( info, "NOTES:COOPERATION", str_cstr( &s ), level );
 	  else if (xml_tag_attrib( node, "note", "type", "level" )) {
 	    if (ifEnglish(&language))
 	      fstatus = fields_add( info, "NOTES:LEVEL:EN", str_cstr( &s ), level );
