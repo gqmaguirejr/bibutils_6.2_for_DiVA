@@ -451,7 +451,7 @@ append_people( fields *in, char *tag, char *ctag, char *atag,
 
 	strs_init( &allpeople, &oneperson, NULL );
 
-	print_fields(in);/* added to debug KTH DiVA */
+	Da1 print_fields(in);/* added to debug KTH DiVA */
 
 	/* primary citation authors */
 	npeople = 0;
@@ -720,7 +720,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	strs_init(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, &complete_addon, NULL);
 	int original_lang = -1;
 
-	fprintf( stderr, "GQMJr::append_title bibtag=%s, level=%d\n", bibtag, level); /* added to debug KTH DiVA */
+	Da1 fprintf( stderr, "GQMJr::append_title bibtag=%s, level=%d\n", bibtag, level); /* added to debug KTH DiVA */
 
 	title       = fields_find( in, "TITLE",         level );
 	en_title    = fields_find( in, "TITLE:EN",      level );
@@ -736,11 +736,11 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	sv_abstract = fields_find( in, "ABSTRACT:SV",      level );
 
 	language_fieldindex = fields_find( in, "LANGUAGE", LEVEL_MAIN );
-	fprintf( stderr, "GQMJr::append_title language_fieldindex=%d\n", language_fieldindex); /* added to debug KTH DiVA */
+	Da1 fprintf( stderr, "GQMJr::append_title language_fieldindex=%d\n", language_fieldindex); /* added to debug KTH DiVA */
 	if (language_fieldindex != -1) {
-	  fprintf( stderr, "GQMJr::append_title language defined\n");
+	  Da1 fprintf( stderr, "GQMJr::append_title language defined\n");
 	  language=fields_value( in, language_fieldindex, FIELDS_STRP );
-	  fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
+	  Da1 fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
 	  if (strncmp(str_cstr(language), "English", str_strlen(language)) ==0)
 	    original_lang = 1;
 	  else if (strncmp(str_cstr(language), "Swedish", str_strlen(language)) ==0)
@@ -749,7 +749,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	}
 
 	if ((en_title == -1) && (sv_title == -1) && (title == -1) && (short_title == -1) ) {
-	  fprintf( stderr, "GQMJr::append_title ERROR no title of any kind\n");
+	  Da1 fprintf( stderr, "GQMJr::append_title ERROR no title of any kind\n");
 	  ret = BIBL_ERR_MEMERR;
 	  goto out;
 	}
@@ -786,8 +786,8 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	  construct_title_chosen(in, bibtag, out, en_title, en_subtitle, &en_fulltitle );
 	  construct_title_chosen(in, bibtag, out, sv_title, sv_subtitle, &sv_fulltitle );
 
-	  fprintf( stderr, "GQMJr::append_title en_fulltitle=%s\n", en_fulltitle.data);
-	  fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
+	  Da1 fprintf( stderr, "GQMJr::append_title en_fulltitle=%s\n", en_fulltitle.data);
+	  Da1 fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
 
 	  if (language_fieldindex != -1) {
 	    if (!str_is_empty(language)) {
@@ -804,7 +804,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	      }
 	    }
 	  } else
-	    fprintf( stderr, "GQMJr::append_title language not defined\n");
+	    fprintf( stderr, "append_title:: language not defined\n");
 	}
 
  addons:
@@ -828,7 +828,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	    str_strcatc(&lang_addon, "på engelska");
 	  }
 	} else
-	  fprintf( stderr, "GQMJr::append_title unsupport lanaguage combination in lang_addon\n");
+	  fprintf( stderr, "append_title:: unsupported lanaguage combination in lang_addon\n");
 
 	/* summary_addon */
 	if (lang & BIBL_LANGUAGE_ENGLISH ) {
@@ -1268,11 +1268,11 @@ append_note_degree( fields *in, char *intag, char *outtag, fields *out, int *sta
 	if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":EN");
-	  fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	  Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":SV");
-	  fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	  Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	}
 
 	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
@@ -1305,11 +1305,11 @@ append_note_degree( fields *in, char *intag, char *outtag, fields *out, int *sta
 	  if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	    strcpy(extended_intag, intag);
 	    strcat(extended_intag, ":SV");
-	    fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	    Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	  } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	    strcpy(extended_intag, intag);
 	    strcat(extended_intag, ":EN");
-	    fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
+	    Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	  }
 
 	  for ( i=0; i<in->n; ++i ) {
@@ -1539,7 +1539,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	int type, status = BIBL_OK;
 
 	type = bibtexout_type( in, "", refnum, p );
-	fprintf( stderr, "GQMJr::append_data type = %d\n", type); /* added to debug KTH DiVA */
+	Da1 fprintf( stderr, "GQMJr::append_data type = %d\n", type); /* added to debug KTH DiVA */
 	Da1 fprintf( stderr, "GQMJr::append_data p->language = %d\n", p->language); /* added to debug KTH DiVA */
 
 	append_type        ( type, out, &status );

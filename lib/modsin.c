@@ -27,6 +27,9 @@
 #include "bibutils.h"
 #include "bibformats.h"
 
+/* the macro below is to comment out or in statements for debugging purposes */
+#define Da1  if (0)
+
 static int modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *reference, int *fcharset );
 static int modsin_processf( fields *medin, char *data, char *filename, long nref, param *p );
 
@@ -38,7 +41,10 @@ ifEnglish(str *lang)
 {
   char *targetLanguage = "English";
 
-  fprintf( stderr, "GQMJr::ifEnglish lang=%s\n", lang->data);
+  Da1 fprintf( stderr, "GQMJr::ifEnglish lang=%s\n", lang->data);
+
+  if (str_strlen(lang) == 0)
+    return 0;
 
   if (str_strlen(lang) == 2) {
     if (strncmp(str_cstr(lang), "en", 2) == 0)
@@ -51,7 +57,7 @@ ifEnglish(str *lang)
     else
       return 0;
   } else			/* error as it should be 2 or 3 characters long string */
-    fprintf( stderr, "GQMJr::ifEnglish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    fprintf( stderr, "ifEnglish:: Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
 
   return 0;
 
@@ -61,6 +67,9 @@ static int
 ifSwedish(str *lang)
 {
   char *targetLanguage = "Swedish";
+
+  if (str_strlen(lang) == 0)
+    return 0;
 
   if (str_strlen(lang) == 2) {
     if (strncmp(str_cstr(lang), "sv", 2) == 0)
@@ -73,7 +82,7 @@ ifSwedish(str *lang)
     else
       return 0;
   } else			/* error as it should be 2 or 3 characters long string */
-    fprintf( stderr, "GQMJr::ifSwedish Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
+    fprintf( stderr, "ifSwedish:: Error in language string, not 2 or 3 characerrs long, lang=%s\n", lang->data);
 
   return 0;
 
@@ -312,7 +321,7 @@ modsin_title( xml *node, fields *info, int level )
 	lp = xml_getattrib(node, "lang");
 	if ( lp ) {
 	  str_strcpy( &language, lp );
-	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", language.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_title lang=%s\n", language.data);
 	}
 
 	dnode = node->down;
@@ -325,7 +334,7 @@ modsin_title( xml *node, fields *info, int level )
 	if ( status!=BIBL_OK ) goto out;
 
 	if ( str_has_value( &title ) ) {
-	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", title.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_title lang=%s\n", title.data);
 	  strcpy(extended_titletag, titletag[0][abbr]);
 	  if (ifEnglish(&language))
 	    strcat(extended_titletag, ":EN");
@@ -337,7 +346,7 @@ modsin_title( xml *node, fields *info, int level )
 	}
 
 	if ( str_has_value( &subtitle ) ) {
-	  fprintf( stderr, "GQMJr::modsin_title lang=%s\n", subtitle.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_title lang=%s\n", subtitle.data);
 	  strcpy(extended_subtitletag, titletag[1][abbr]);
 	  if (ifEnglish(&language))
 	    strcat(extended_subtitletag, ":EN");
@@ -391,7 +400,7 @@ modsin_marcrole_convert( str *s, char *suffix, str *out )
 	int nroles = sizeof( roles ) / sizeof( roles[0] );
 	int i, nmismatch, n = -1, status = BIBL_OK;
 	char *p, *q;
-	fprintf( stderr, "GQMJr::modsin_marcrole_convert string=%s, suffix=%s\n", s->data, suffix ); /* added to debug KTH DiVA */
+	Da1 fprintf( stderr, "GQMJr::modsin_marcrole_convert string=%s, suffix=%s\n", s->data, suffix ); /* added to debug KTH DiVA */
 	if ( s->len == 0 ) {
 		/* ...default to author on an empty string */
 		n = 0;
@@ -850,13 +859,13 @@ modsin_subject( xml *node, fields *info, int level )
 	int status = BIBL_OK;
 	str language, *lp;
 
-	fprintf( stderr, "GQMJr::modsin_subject ENTERING\n");
+	Da1 fprintf( stderr, "GQMJr::modsin_subject ENTERING\n");
 
 	str_init(&language);
 	lp = xml_getattrib(node, "lang");
 	if ( lp ) {
 	  str_strcpy( &language, lp );
-	  fprintf( stderr, "GQMJr::modsin_subject lang=%s\n", language.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_subject lang=%s\n", language.data);
 	}
 
 	if ( node->down ) status = modsin_subjectr( node->down, info, level, language );
@@ -1189,13 +1198,13 @@ modsin_note( xml *node, fields *info, int level )
 	str s;
 	str language, *lp;
 
-	fprintf( stderr, "GQMJr::modsin_note ENTERING\n");
+	Da1 fprintf( stderr, "GQMJr::modsin_note ENTERING\n");
 
 	str_init(&language);
 	lp = xml_getattrib(node, "lang");
 	if ( lp ) {
 	  str_strcpy( &language, lp );
-	  fprintf( stderr, "GQMJr::modsin_note lang=%s\n", language.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_note lang=%s\n", language.data);
 	}
 
 	str_init( &s );
@@ -1207,7 +1216,7 @@ modsin_note( xml *node, fields *info, int level )
 	}
 
 	if ( str_has_value( &s ) ) {
-	  fprintf( stderr, "GQMJr::modsin_note s=%s\n", s.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_note s=%s\n", s.data);
 	  if (xml_tag_attrib( node, "note", "type", "thesis" ))
 	    fstatus = fields_add( info, "NOTES:THESIS", str_cstr( &s ), level );
 	  else if (xml_tag_attrib( node, "note", "type", "venue" ))
@@ -1256,7 +1265,7 @@ modsin_abstract( xml *node, fields *info, int level )
 	lp = xml_getattrib(node, "lang");
 	if ( lp ) {
 	  str_strcpy( &language, lp );
-	  fprintf( stderr, "GQMJr::modsin_abstract lang=%s\n", language.data);
+	  Da1 fprintf( stderr, "GQMJr::modsin_abstract lang=%s\n", language.data);
 	}
 
 	str_init( &s );
@@ -1268,7 +1277,7 @@ modsin_abstract( xml *node, fields *info, int level )
 	}
 
 	if ( str_has_value( &s ) ) {
-	  fprintf( stderr, "GQMJr::modsin_abstract s=%s\n", s.data);
+	  // fprintf( stderr, "GQMJr::modsin_abstract s=%s\n", s.data);
 	  if (ifEnglish(&language))
 	    fstatus = fields_add( info, "ABSTRACT:EN", str_cstr( &s ), level );
 	  else if (ifSwedish(&language))
@@ -1303,11 +1312,10 @@ modsin_mods( xml *node, fields *info, int level )
 
 	for ( i=0; i<nsimple && found==0; i++ ) {
 		if ( xml_tagexact( node, simple[i].mods ) ) {
-		  /* qqq */
-		  fprintf( stderr, "GQMJr::modsin_mods simple=%s\n", simple[i].mods); /* added to debug KTH DiVA */
-			status = modsin_simple( node, info, simple[i].internal, level );
-			if ( status!=BIBL_OK ) return status;
-			found = 1;
+		  Da1 fprintf( stderr, "GQMJr::modsin_mods simple=%s\n", simple[i].mods); /* added to debug KTH DiVA */
+		  status = modsin_simple( node, info, simple[i].internal, level );
+		  if ( status!=BIBL_OK ) return status;
+		  found = 1;
 		}
 	}
 
