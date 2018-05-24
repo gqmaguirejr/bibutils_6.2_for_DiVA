@@ -1,6 +1,14 @@
 # bibutils_6.2_for_DiVA
-A set of bibutils_6.2 for working with DiVA (specifically the KTH Publication
-Database instance of DiVA).
+A set of bibutils_6.2 for working with DiVA (specifically the KTH
+Publication Database instance of DiVA).
+
+Note that there are two major reasons for the changes:
+* changes to handle elements of the MODS file that are used in DiVA but not
+previously handled by modsin (including a number of additional MARC roles)
+* changes to enable both modsin and bibtexo to produce output in the user's
+choice of English or Swedish (as the DiVA records frequently have abstracts
+and keywords in both lanugages, but BiBTeX only suports one language at a time
+for a given reference).
 
 Once you have the MODS file from DiVA you can say:
 ```
