@@ -853,21 +853,21 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	  }
 	}  else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	  if ((en_title != -1) && (sv_title == -1) && (original_lang == 1) && (sv_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	    str_strcatc(&summary_addon, "med svensk sammanfattning");
 	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (sv_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	    str_strcatc(&summary_addon, "med svensk sammanfattning");
 	  } else if ((en_title != -1) && (sv_title == -1) && (original_lang == 2) && (en_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	    str_strcatc(&summary_addon, "med engelsk sammanfattning");
 	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	    str_strcatc(&summary_addon, "med engelsk sammanfattning");
 	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (en_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	    str_strcatc(&summary_addon, "med engelsk sammanfattning");
 	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	    str_strcatc(&summary_addon, "med svensk sammanfattning");
 	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 1) && (sv_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med svenska sammanfattning");
+	    str_strcatc(&summary_addon, "med svensk sammanfattning");
 	  } else if ((en_title != -1) && (sv_title != -1) && (original_lang == 2) && (en_abstract != -1)) {
-	    str_strcatc(&summary_addon, "med engelska sammanfattning");
+	    str_strcatc(&summary_addon, "med engelsk sammanfattning");
 	  } else if ((en_title == -1) && (sv_title != -1) && (original_lang == 1) ) {
 	    /* nothing to do */
 	  }
