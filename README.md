@@ -6,13 +6,13 @@ Once you have the MODS file from DiVA you can say:
 ```
 xml2bib file_name.mods > file_name.bib
 ```
-     and you get the version of the abstract and keywords in English (can can also explicitly say --english)
+and you get the version of the abstract and keywords in English (can can also explicitly say --english)
 
 or
 ```
 xml2bib --swedish file_name.xml > file_name.bib
 ```
-      and you get the Swedish version.
+and you get the Swedish version.
 
 The titles are handled in a rather complex fashion, but it is fully explained
 in the bibtexo.c file. I hope that I have the logic correct for this, as I
