@@ -29,6 +29,7 @@
 
 /* the macro below is to comment out or in statements for debugging purposes */
 #define Da1  if (0)
+#define Da3  if (1)
 
 static int modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *reference, int *fcharset );
 static int modsin_processf( fields *medin, char *data, char *filename, long nref, param *p );
@@ -854,23 +855,122 @@ modsin_subjectr( xml *node, fields *info, int level, str language)
 }
 
 static int
+modsin_subjectr_hsv( xml *node, fields *info, int level, str language)
+{
+	int fstatus, status = BIBL_OK;
+
+        if ( xml_tagexact( node, "topic" )) {
+	  if (ifEnglish(&language))
+	    fstatus = fields_add( info, "SUBJECT:EN", node->value->data, level );
+	  else if (ifSwedish(&language))
+	    fstatus = fields_add( info, "SUBJECT:SV", node->value->data, level );
+	  else
+	    fstatus = fields_add( info, "SUBJECT", node->value->data, level );
+
+	  if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
+	}
+	if ( node->down ) {
+		status = modsin_subjectr_hsv( node->down, info, level, language );
+		if ( status!=BIBL_OK ) return status;
+	}
+	if ( node->next ) status = modsin_subjectr_hsv( node->next, info, level, language );
+	return status;
+}
+
+static int
+modsin_subjectr_xlink( xml *node, fields *info, int level, str language)
+{
+	int fstatus, status = BIBL_OK;
+	str genre, *genrep;
+	str degree;
+
+	strs_init(&genre, &degree, NULL );
+
+	Da1 fprintf( stderr, "GQMJr::modsin_subjectr_xlink ENTERING\n");
+
+        if ( xml_tagexact( node, "topic" )) {
+	  /* check the next node to see if there is a genre */
+	  if ( node->next ) {
+	    if ( xml_hasvalue( node ) ) {
+	    Da1 fprintf( stderr, "GQMJr::modsin_subjectr_xlink down node tag=%s, value=%s\n", (node->next)->tag->data, (node->next)->value->data);
+	    str_strcpy( &genre,  (node->next)->value);
+	    }
+	  }
+
+	if (!str_is_empty(&genre)) {
+	  str_strcpy(&degree,&genre);
+	  str_strcatc(&degree, ": ");
+	}
+
+	str_strcat( &degree, node->value);
+	if (ifEnglish(&language))
+	  fstatus = fields_add( info, "NOTES:DEGREE:EN", str_cstr(&degree), level );
+	  else if (ifSwedish(&language))
+	    fstatus = fields_add( info, "NOTES:DEGREE:SV", str_cstr(&degree), level );
+	  else
+	    fstatus = fields_add( info, "NOTES:DEGREE", str_cstr(&degree), level );
+
+	  if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
+	}
+
+	if ( node->down ) {
+	  Da1 fprintf( stderr, "GQMJr::modsin_subjectr_xlink not handling a down node tag=%s, value=%s\n", (node->down)->tag->data, (node->down)->value->data);
+	  goto out;
+	}
+
+ out:
+	strs_free(&genre, &degree, NULL );
+	return status;
+}
+
+
+static int
 modsin_subject( xml *node, fields *info, int level )
 {
 	int status = BIBL_OK;
 	str language, *lp;
+	str authority, *authorityP;
+	str xlink, *xlinkp;
+
 
 	Da1 fprintf( stderr, "GQMJr::modsin_subject ENTERING\n");
 
-	str_init(&language);
+	strs_init(&language, &authority, &xlink, NULL );
+
 	lp = xml_getattrib(node, "lang");
 	if ( lp ) {
 	  str_strcpy( &language, lp );
 	  Da1 fprintf( stderr, "GQMJr::modsin_subject lang=%s\n", language.data);
 	}
 
+	authorityP = xml_getattrib(node, "authority");
+	if ( authorityP ) {
+	  Da1 fprintf( stderr, "GQMJr::modsin_subject found authority\n");
+	  str_strcpy( &authority, authorityP );
+	  Da1 fprintf( stderr, "GQMJr::modsin_subject authority=%s\n", authority.data);
+	}
+
+	if ((str_strlen(&authority) > 0) && (strncmp(str_cstr(&authority), "hsv", 3) == 0)) {
+	  Da1 fprintf( stderr, "GQMJr::modsin_subject found authority for subject is hsv\n"); /* added to debug KTH DiVA */
+	  if ( node->down ) {
+	    status = modsin_subjectr_hsv( node->down, info, level, language );
+	  }
+	  goto out;
+	}
+	xlinkp = xml_getattrib( node, "xlink:href" );
+	  if ( xlinkp ) {
+	    str_strcpy( &xlink, xlinkp );
+	    str_toupper( &xlink );
+	    Da1 fprintf( stderr, "GQMJr::modsin_subject xlink=%s\n", xlink.data); /* added to debug KTH DiVA */
+	    if ( str_memerr( &xlink ) ) goto out;
+	    if (node->down)
+	      modsin_subjectr_xlink( node->down, info, level, language );
+	    goto out;
+	    }
 	if ( node->down ) status = modsin_subjectr( node->down, info, level, language );
 
-	strs_free( &language, NULL );
+ out:
+	strs_free( &language, &authority, &xlink, NULL );
 	return status;
 }
 
@@ -1457,6 +1557,7 @@ modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *ref
 
 	str_free( &tmp );
 	*fcharset = file_charset;
+	Da1 fprintf( stderr, "GQMJr::modsin_readf file_charset=%d\n", file_charset); /* added to debug KTH DiVA */
 	return ( reference->len > 0 );
 }
 

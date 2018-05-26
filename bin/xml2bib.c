@@ -13,6 +13,10 @@
 #include "args.h"
 #include "bibprog.h"
 
+/* the macro below is to comment out or in statements for debugging purposes */
+#define Da1  if (0)
+#define Da3  if (1)
+
 const char progname[] = "xml2bib";
 
 void
@@ -123,12 +127,6 @@ process_args( int *argc, char *argv[], param *p )
 	}
 }
 
-void
-gqm_print_language(param *p)
-{
-  fprintf( stderr, "GQMJr gqm_print_language=%d\n", p->language); /* added to debug KTH DiVA */
-}
-
 
 int 
 main( int argc, char *argv[] )
@@ -138,6 +136,8 @@ main( int argc, char *argv[] )
 	bibtexout_initparams( &p, progname );
 	process_charsets( &argc, argv, &p );
 	process_args( &argc, argv, &p );
+	Da1 fprintf( stderr, "GQMJr::main charsetin=%d, charsetout=%d, utf8in=%d, utf8out=%d, \n", 	p.charsetin, p.charsetout, p.utf8in, p.utf8out);
+
 	bibprog( argc, argv, &p );
 	bibl_freeparams( &p );
 	return EXIT_SUCCESS;

@@ -22,7 +22,7 @@
 
 /* the macro below is to comment out or in statements for debugging purposes */
 #define Da1  if (0)
-
+#define Da3  if (1)
 
 static int  bibtexout_write( fields *in, FILE *fp, param *p, unsigned long refnum );
 static void bibtexout_writeheader( FILE *outptr, param *p );
@@ -714,7 +714,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	int en_subtitle = -1, sv_subtitle = -1;
 	int en_abstract = -1, sv_abstract = -1;
 	int language_fieldindex  = -1;
-	str *language;
+	char *language;
 	str en_fulltitle, sv_fulltitle, fulltitle, completetitle;
 	str lang_addon, summary_addon, complete_addon;
 	strs_init(&en_fulltitle, &sv_fulltitle, &fulltitle, &completetitle, &lang_addon, &summary_addon, &complete_addon, NULL);
@@ -739,11 +739,11 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	Da1 fprintf( stderr, "GQMJr::append_title language_fieldindex=%d\n", language_fieldindex); /* added to debug KTH DiVA */
 	if (language_fieldindex != -1) {
 	  Da1 fprintf( stderr, "GQMJr::append_title language defined\n");
-	  language=fields_value( in, language_fieldindex, FIELDS_STRP );
-	  Da1 fprintf( stderr, "GQMJr::append_title language=%s\n", language->data);
-	  if (strncmp(str_cstr(language), "English", str_strlen(language)) ==0)
+	  language=fields_value( in, language_fieldindex, FIELDS_CHRP );
+	  Da1 fprintf( stderr, "GQMJr::append_title language=%s\n", language);
+	  if (strncmp(language, "English", strlen(language)) ==0)
 	    original_lang = 1;
-	  else if (strncmp(str_cstr(language), "Swedish", str_strlen(language)) ==0)
+	  else if (strncmp(language, "Swedish", strlen(language)) ==0)
 	    original_lang = 2;
 
 	}
@@ -790,7 +790,7 @@ append_title( fields *in, char *bibtag, int level, fields *out, int format_opts,
 	  Da1 fprintf( stderr, "GQMJr::append_title sv_fulltitle=%s\n", sv_fulltitle.data);
 
 	  if (language_fieldindex != -1) {
-	    if (!str_is_empty(language)) {
+	    if (strlen(language) > 0) {
 	      if (original_lang == 1) {
 		str_strcpy(&completetitle, &en_fulltitle);
 		str_strcatc(&completetitle, " [");
@@ -1263,28 +1263,47 @@ append_note_degree( fields *in, char *intag, char *outtag, fields *out, int *sta
 	int i, fstatus;
 	int found = 0;
 	char extended_intag[256];
+	str *field_value;
+	char education_program[]="Educational program: ";
+	char subject_course[]   ="Subject/course: ";
+
 	extended_intag[0]='\0';
+
+	Da1 fprintf( stderr, "GQMJr::append_note_degree ENTERING\n");
 
 	if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":EN");
-	  Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":SV");
-	  Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 	}
+	Da1 fprintf( stderr, "GQMJr::append_note_degree extended_intag=%s\n", extended_intag);
 
 	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
 	  for ( i=0; i<in->n; ++i ) {
 	    if ( fields_match_tag( in, i, extended_intag ) ) {
 	      found = 1;
 	      fields_setused( in, i );
-	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	      field_value=fields_value( in, i, FIELDS_STRP );
+	      Da1 fprintf( stderr, "GQMJr::append_note_degree field_value=%s\n", field_value->data);
+	      if (strncmp(str_cstr(field_value), education_program, strlen(education_program)) ==0) {
+		if (lang & BIBL_LANGUAGE_SWEDISH ) {
+		  str_findreplace(field_value, education_program, "Utbildningsprogram: " );
+		}
+	      } else if (strncmp(str_cstr(field_value), subject_course, strlen(subject_course)) ==0) {
+		if (lang & BIBL_LANGUAGE_SWEDISH ) {
+		  str_findreplace(field_value, subject_course, "Ämne/kurs: " );
+		}
+	      }
+
+	      fstatus = fields_add( out, outtag, str_cstr( field_value), LEVEL_MAIN );
 	      if ( fstatus!=FIELDS_OK ) {
 		*status = BIBL_ERR_MEMERR;
 		return;
 	      }
+
+
 	    }
 	  }
 	} else {
@@ -1328,46 +1347,205 @@ append_note_degree( fields *in, char *intag, char *outtag, fields *out, int *sta
 
 /* added to support KTH DiVA - to support notes of type "level" */
 /* if p->langauge is set, then use the chosen language for the note about the the level */
+typedef struct eng_to_swe {
+  char *eng;     /* English version; */
+  char *swe;	 /* Swedish version */
+  char *swetex;	 /* Swedish version in TeX format */
+} eng_to_swe;
+
+
 static void
 append_note_level( fields *in, char *intag, char *outtag, fields *out, int *status, int lang )
 {
-	int i, fstatus;
+  /*
+   * Note that this translation table is needed to go from the Swedish names for the degree to the English form.
+   * These strings were taken from the Javascript for the page to manually enter a new publication in DiVA.
+   * GQMJr: I am not sure why one gets the TeX version of the character strings.
+   */
+  eng_to_swe translate_level[]=
+    {
+      {"Independent thesis Advanced level (degree of Master (One Year))",
+       "Självständigt arbete på avancerad nivå (magisterexamen)",
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete pp{\\aa} avancerad nivp{\\aa} (magisterexamen)" }, /* H1 */
+      {"Independent thesis Advanced level (degree of Master (Two Years))",
+       "Självständigt arbete på avancerad nivå (masterexamen)", 
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} avancerad niv{\\aa} (masterexamen)"}, /* H2 */
+      {"Independent thesis Advanced level (professional degree)", 
+       "Självständigt arbete på avancerad nivå (yrkesexamen)",
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} avancerad niv{\\aa} (yrkesexamen)"  }, /* H3 */
+
+      {"Independent thesis Basic level (university diploma)",
+       "Självständigt arbete på grundnivå (högskoleexamen)", 
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} grundniv{\\aa} (högskoleexamen)"}, /* M1 */
+      {"Independent thesis Basic level (degree of Bachelor)",
+       "Självständigt arbete på grundnivå (kandidatexamen)",
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} grundniv{\\aa} (kandidatexamen)"},  /* M2 */
+      {"Independent thesis Basic level (professional degree)", 
+       "Självständigt arbete på grundnivå (yrkesexamen)", 
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} grundniv{\\aa} (yrkesexamen)"}, /* M3 */
+      {"Independent thesis Basic level (Higher Education Diploma (Fine Arts))", 
+       "Självständigt arbete på grundnivå (konstnärlig högskoleexamen)", 
+      "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} grundniv{\\aa} (konstnärlig högskoleexamen)"}, /* M4 */
+      {"Independent thesis Basic level (degree of Bachelor of Fine Arts)",
+       "Självständigt arbete på grundnivå (konstnärlig kandidatexamen)",
+       "Sj{\\\"a}lvst{\\\"a}ndigt arbete p{\\aa} grundniv{\\aa} (konstnärlig kandidatexamen)"}, /* M5 */
+
+      {"Student paper first term", 
+       "Studentarbete första termin",
+       "Studentarbete första termin"}, /* L1 */
+      {"Student paper second term",
+       "Studentarbete andra termin",
+       "Studentarbete andra termin"}, /* L2 */
+      {"Student paper other", 
+       "Studentarbete övrigt",
+       "Studentarbete övrigt"}, /* L3 */
+    };
+
+  int ntranslate_level = sizeof (translate_level) / sizeof (translate_level[0]);
+  int i, j, fstatus;
+  char extended_intag[256];
+  int swe_found = 0;
+  int found = 0;
+  char *field_value;
+  int k;
+
+  extended_intag[0]='\0';
+
+  Da1 fprintf( stderr, "GQMJr::append_note_level ntranslate_level=%d\n", ntranslate_level);
+
+  /* Note that this value only seems to be given in Swedish */
+#ifdef NEVER
+  if (lang & BIBL_LANGUAGE_ENGLISH ) {
+    strcpy(extended_intag, intag);
+    strcat(extended_intag, ":EN");
+  }
+  if (lang & BIBL_LANGUAGE_SWEDISH ) {
+#endif
+    strcpy(extended_intag, intag);
+    strcat(extended_intag, ":SV");
+#ifdef NEVER
+  }
+#endif
+
+  Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+
+  if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
+    for ( i=0; i<in->n; ++i ) {
+      Da1 fprintf( stderr, "GQMJr::append_note_level i=%d, fields_tag=%s\n", i, (char *)fields_tag( in, i, FIELDS_CHRP ));
+      if ( fields_match_tag( in, i, extended_intag ) ) {
+	found = 1;
+	Da1 fprintf( stderr, "GQMJr::append_note_level found=%d\n", i);
+
+	Da1 fprintf( stderr, "GQMJr::append_note_level found = %d\n", found); /* added to debug KTH DiVA */
+	fields_setused( in, i );
+	field_value=fields_value( in, i, FIELDS_CHRP );
+	Da1 fprintf( stderr, "GQMJr::append_note_level field_value = %s\n", field_value); /* added to debug KTH DiVA */
+#ifdef NEVER
+	for (k=0; k<strlen(field_value); k++) {
+	  Da3 fprintf( stderr, "GQMJr::append_note_level field_value[%d]=%d\n", k, (int)field_value[k]); /* added to debug KTH DiVA */
+	}
+
+#endif
+	if ((lang & BIBL_LANGUAGE_ENGLISH )) {
+	  for ( j=0; j<ntranslate_level && swe_found==0; j++ ) {
+	    Da1 fprintf( stderr, "GQMJr::append_note_level swetex = %s and eng = %s\n", translate_level[j].swetex, translate_level[j].eng); /* added to debug KTH DiVA */
+	    if (strncmp(field_value, translate_level[j].swetex, strlen(translate_level[j].swetex)) == 0)  {
+	      Da1 fprintf( stderr, "GQMJr::append_note_level *** swetex = %s and eng = %s\n", translate_level[j].swetex, translate_level[j].eng); /* added to debug KTH DiVA */
+	      field_value = translate_level[j].eng;
+	      swe_found=1;
+	    }
+	  }
+	}
+
+	fstatus = fields_add( out, outtag, field_value, LEVEL_MAIN );
+	if ( fstatus!=FIELDS_OK ) {
+	  *status = BIBL_ERR_MEMERR;
+	  return;
+	}
+      }
+    }
+  } else {
+    for ( i=0; i<in->n; ++i ) {
+      if ( fields_match_tag( in, i, intag ) ) {
+	fields_setused( in, i );
+	fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	if ( fstatus!=FIELDS_OK ) {
+	  *status = BIBL_ERR_MEMERR;
+	  return;
+	}
+      }
+    }
+  }
+
+  if (found == 0) {	/* if nothing found above, then try looking for the other language */
+    if (lang & BIBL_LANGUAGE_ENGLISH ) {
+      strcpy(extended_intag, intag);
+      strcat(extended_intag, ":SV");
+      Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+    } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
+      strcpy(extended_intag, intag);
+      strcat(extended_intag, ":EN");
+      Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
+    }
+
+    for ( i=0; i<in->n; ++i ) {
+      if ( fields_match_tag( in, i, extended_intag ) ) {
+	found = 1;
+	fields_setused( in, i );
+	fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
+	if ( fstatus!=FIELDS_OK ) {
+	  *status = BIBL_ERR_MEMERR;
+	  return;
+	}
+      }
+    }
+  }
+
+}
+
+static void
+append_subject( fields *in, char *intag, char *outtag, fields *out, int *status, int lang )
+{
+	int fstatus;
 	char extended_intag[256];
 	int found = 0;
+	vplist_index i;
+	vplist a;
+	str subjects, *word;
+
+	str_init( &subjects );
+	vplist_init( &a );
 
 	extended_intag[0]='\0';
 
 	if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":EN");
-	  Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
 	} else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	  strcpy(extended_intag, intag);
 	  strcat(extended_intag, ":SV");
-	  Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
-	}
+	} else
+	  strcpy(extended_intag, intag);
+
+	Da1 fprintf( stderr, "GQMJr::append_subject extended_intag=%s\n", extended_intag);
 
 	if ((lang & BIBL_LANGUAGE_ENGLISH ) || (lang & BIBL_LANGUAGE_SWEDISH )) {
-	  for ( i=0; i<in->n; ++i ) {
-	    if ( fields_match_tag( in, i, extended_intag ) ) {
-	      found = 1;
-	      fields_setused( in, i );
-	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
-	      if ( fstatus!=FIELDS_OK ) {
-		*status = BIBL_ERR_MEMERR;
-		return;
-	      }
+	  fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, extended_intag );
+
+	  if ( a.n ) {
+	    found = 1;
+	    for ( i=0; i<a.n; ++i ) {
+	      word = vplist_get( &a, i );
+	      if ( i>0 ) str_strcatc( &subjects, "; " );
+	      str_strcat( &subjects, word );
 	    }
-	  }
-	} else {
-	  for ( i=0; i<in->n; ++i ) {
-	    if ( fields_match_tag( in, i, intag ) ) {
-	      fields_setused( in, i );
-	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
-	      if ( fstatus!=FIELDS_OK ) {
-		*status = BIBL_ERR_MEMERR;
-		return;
-	      }
+
+	    if ( str_memerr( &subjects ) ) { *status = BIBL_ERR_MEMERR; goto out; }
+
+	    fstatus = fields_add( out, outtag, str_cstr( &subjects ), LEVEL_MAIN );
+	    if ( fstatus!=FIELDS_OK ) {
+	      *status = BIBL_ERR_MEMERR;
+	      goto out;
 	    }
 	  }
 	}
@@ -1376,26 +1554,34 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int *stat
 	  if (lang & BIBL_LANGUAGE_ENGLISH ) {
 	    strcpy(extended_intag, intag);
 	    strcat(extended_intag, ":SV");
-	    Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
 	  } else if (lang & BIBL_LANGUAGE_SWEDISH ) {
 	    strcpy(extended_intag, intag);
 	    strcat(extended_intag, ":EN");
-	    Da1 fprintf( stderr, "GQMJr::append_note_level extended_intag=%s\n", extended_intag);
 	  }
+	  Da1 fprintf( stderr, "GQMJr::append_subject extended_intag=%s\n", extended_intag);
 
-	  for ( i=0; i<in->n; ++i ) {
-	    if ( fields_match_tag( in, i, extended_intag ) ) {
-	      found = 1;
-	      fields_setused( in, i );
-	      fstatus = fields_add( out, outtag, fields_value( in, i, FIELDS_CHRP ), LEVEL_MAIN );
-	      if ( fstatus!=FIELDS_OK ) {
-		*status = BIBL_ERR_MEMERR;
-		return;
-	      }
+	  fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, extended_intag );
+
+	  if ( a.n ) {
+	    found = 1;
+	    for ( i=0; i<a.n; ++i ) {
+	      word = vplist_get( &a, i );
+	      if ( i>0 ) str_strcatc( &subjects, "; " );
+	      str_strcat( &subjects, word );
+	    }
+
+	    if ( str_memerr( &subjects ) ) { *status = BIBL_ERR_MEMERR; goto out; }
+
+	    fstatus = fields_add( out, outtag, str_cstr( &subjects ), LEVEL_MAIN );
+	    if ( fstatus!=FIELDS_OK ) {
+	      *status = BIBL_ERR_MEMERR;
+	      goto out;
 	    }
 	  }
 	}
-
+ out:
+	str_free( &subjects );
+	vplist_free( &a );
 }
 
 /* added to support KTH DiVA - to support abstract with a given/optional language */
@@ -1569,12 +1755,13 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_simple      ( in, "DEGREEGRANTOR:ASIS", "school",    out, &status );
 	append_simple      ( in, "DEGREEGRANTOR:CORP", "school",    out, &status );
 	append_simple      ( in, "NOTES:THESIS",       "note_thesis",    out, &status );         /* KTH DiVA */
-	append_simple      ( in, "NOTES:VENUE",        "venue",    out, &status );               /* KTH DiVA */
+	append_simple      ( in, "NOTES:VENUE",        "venue",     out, &status );               /* KTH DiVA */
 	append_simple      ( in, "NOTES:UNIVERSITYCREDITS",        "credits",    out, &status ); /* KTH DiVA */
 	append_simple      ( in, "NOTES:COOPERATION",  "cooperation",    out, &status );               /* KTH DiVA */
 	append_note_degree ( in, "NOTES:DEGREE",       "degree",    out, &status, p->language ); /* KTH DiVA */
-	append_note_level  ( in, "NOTES:LEVEL",        "level",    out, &status, p->language );  /* KTH DiVA */
-	append_abstract    ( in, "ABSTRACT",           "abstract", out, &status, p->language );  /* KTH DiVA */
+	append_note_level  ( in, "NOTES:LEVEL",        "level",     out, &status, p->language );  /* KTH DiVA */
+	append_abstract    ( in, "ABSTRACT",           "abstract",  out, &status, p->language );  /* KTH DiVA */
+	append_subject     ( in, "SUBJECT",            "subject",   out, &status, p->language );  /* KTH DiVA */
 
 	append_simpleall   ( in, "NOTES",              "note",      out, &status );
 	append_simpleall   ( in, "ANNOTE",             "annote",    out, &status );
