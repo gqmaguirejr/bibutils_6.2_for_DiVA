@@ -1360,6 +1360,8 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int *stat
   /*
    * Note that this translation table is needed to go from the Swedish names for the degree to the English form.
    * These strings were taken from the Javascript for the page to manually enter a new publication in DiVA.
+   *  The URL to the page is: https://kth.diva-portal.org/dream/add/add2.jsf?rvn=1
+   *
    * GQMJr: I am not sure why one gets the TeX version of the character strings.
    */
   eng_to_swe translate_level[]=
