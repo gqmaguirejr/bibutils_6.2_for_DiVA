@@ -451,7 +451,7 @@ append_people( fields *in, char *tag, char *ctag, char *atag,
 
 	strs_init( &allpeople, &oneperson, NULL );
 
-	Da3 print_fields(in);/* added to debug KTH DiVA */
+	Da1 print_fields(in);/* added to debug KTH DiVA */
 
 	/* primary citation authors */
 	npeople = 0;
@@ -1759,6 +1759,7 @@ append_data( fields *in, fields *out, param *p, unsigned long refnum )
 	append_abstract    ( in, "ABSTRACT",           "abstract",  out, &status, p->language );  /* KTH DiVA */
 	append_subject     ( in, "SUBJECT",            "subject",   out, &status, p->language );  /* KTH DiVA */
 
+	append_simple      ( in, "URI",                "uri",       out, &status );
 	append_simple      ( in, "recordOrigin",       "recordOrigin",    out, &status );         /* KTH DiVA */
 	append_simple      ( in, "recordContentSource","recordContentSource",    out, &status );         /* KTH DiVA */
 	append_simple      ( in, "recordCreationDate", "recordCreationDate",    out, &status );         /* KTH DiVA */
