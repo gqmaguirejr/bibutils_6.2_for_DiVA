@@ -1,13 +1,21 @@
 # bibutils_6.2_for_DiVA
-An abdaptation of Chris Putnam's [bibutils_6.2](https://sourceforge.net/projects/bibutils/)
+An adaptation of Chris Putnam's [bibutils_6.2](https://sourceforge.net/projects/bibutils/)
 for working with DiVA (specifically the KTH
 Publication Database instance of DiVA). The main changes are in modsin.c and
-bibtexo.c. I have also added some comments to some of the other files to help
-understand how to use the functions and to figure out what does what.
+bibtexo.c (as I needed to read MODS in and output BibTeX). I have also added
+some comments to some of the other files to help (myself and perhaps others)
+to understand how to use the functions and to figure out what does what.
 
 Note that there are two major reasons for the changes:
 * changes to handle elements of the MODS file that are used in DiVA but not
-previously handled by modsin (including a number of additional MARC roles)
+previously handled by modsin (including a number of additional MARC roles) -
+for further documentation see Kungliga biblioteket/National Library of Sweden, "[SwePub MODS metadata format specification](http://www.kb.se/dokument/SwePub/v.-2.6-SwePub_MODS_Final_version_2015_09_10.pdf)",
+Version 2.6, Datum/Date: 2015-09-10, Dnr/Reference no: 1.4.1-2015-822; details
+of the DiVA records can be found at Stefan Andersson,
+Formatspecifikation](https://wiki.epc.ub.uu.se/display/divainfo/Formatspecifikation),
+last modified by Marie Sörensen on Apr 09, 2018.
+
+
 * changes to enable both modsin and bibtexo to produce output in the user's
 choice of English or Swedish (as the DiVA records frequently have abstracts
 and keywords in both lanugages, but BiBTeX only suports one language at a time
