@@ -253,7 +253,7 @@ urls_merge_and_add_type( fields *out, char *tag_out, int lvl_out, char *prefix, 
 	for ( i=0; i<values->n; ++i ) {
 		str_strcpyc( &url, prefix );
 		str_strcatc( &url, ( char * ) vplist_get( values, i ) );
-		fprintf( stderr, "GQMJr::urls_merge_and_add_type url=%s\n", str_cstr( &url ));
+		// fprintf( stderr, "GQMJr::urls_merge_and_add_type url=%s\n", str_cstr( &url ));
 		fstatus = fields_add( out, tag_out, str_cstr( &url ), lvl_out );
 		if ( fstatus!=FIELDS_OK ) {
 			status = BIBL_ERR_MEMERR;
