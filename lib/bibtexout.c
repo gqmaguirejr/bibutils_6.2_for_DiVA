@@ -118,6 +118,15 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_PHDTHESIS;
 			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
 			return type;
+		} else if (!strcasecmp( genre, "comprehensiveDoctoralThesis" )  ) { /* added to support KTH DiVA's monograph type of dissertation */
+			type = TYPE_PHDTHESIS;
+			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
+			return type;
+		} else if (!strcasecmp( genre, "comprehensiveLicentiateThesis" )  ) { /* added to support KTH DiVA's monograph type of dissertation */
+			type = TYPE_PHDTHESIS;
+			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
+			return type;
+
 		} else if ( !strcasecmp( genre, "book" ) ) {
 		  if ( level==0 ) {
 		    type = TYPE_BOOK;
