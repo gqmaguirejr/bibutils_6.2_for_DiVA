@@ -1,6 +1,9 @@
 # bibutils_6.2_for_DiVA
-A set of bibutils_6.2 for working with DiVA (specifically the KTH
-Publication Database instance of DiVA).
+An abdaptation of Chris Putnam's [bibutils_6.2](https://sourceforge.net/projects/bibutils/)
+for working with DiVA (specifically the KTH
+Publication Database instance of DiVA). The main changes are in modsin.c and
+bibtexo.c. I have also added some comments to some of the other files to help
+understand how to use the functions and to figure out what does what.
 
 Note that there are two major reasons for the changes:
 * changes to handle elements of the MODS file that are used in DiVA but not

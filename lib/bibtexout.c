@@ -96,9 +96,18 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_MANUAL;
 		else if ( !strcasecmp( genre, "unpublished" ) )
 			type = TYPE_UNPUBLISHED;
-		else if (!strcasecmp( genre, "conferencePaper" )  ) { /* added to support KTH DiVA - to handle conference papers */
+		else if ( !strcasecmp( genre, "manuscript" ) ) { /* added to support KTH DiVA - to handle manuscript   */
+			type = TYPE_UNPUBLISHED;
+			return type;
+		} else if (!strcasecmp( genre, "conferencePaper" )  ) { /* added to support KTH DiVA - to handle conference papers */
 		        type = TYPE_INPROCEEDINGS;
 			Da1 fprintf( stderr, "GQMJr %d - genre %s\n", refnum+1, genre ); /* added to debug KTH DiVA */
+			return type;
+		} else if (!strcasecmp( genre, "conferenceProceedings" )  ) { /* added to support KTH DiVA - to handle conferenceProceedings */
+		        type = TYPE_INPROCEEDINGS;
+			return type;
+		} else if (!strcasecmp( genre, "artisticOutput" )  ) { /* added to support KTH DiVA - to handle conferenceProceedings */
+		        type = TYPE_MISC;
 			return type;
 		} else if ( !strcasecmp( genre, "conference publication" ) ) {
 			if ( level==0 ) type=TYPE_PROCEEDINGS;
@@ -126,7 +135,10 @@ bibtexout_type( fields *in, char *filename, int refnum, param *p )
 			type = TYPE_PHDTHESIS;
 			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
 			return type;
-
+		} else if (!strcasecmp( genre, "monographLicentiateThesis" )  ) { /* added to support KTH DiVA's monograph type of dissertation */
+			type = TYPE_PHDTHESIS;
+			Da1 fprintf( stderr, "GQMJr %d - genre %s, type=%d\n", refnum+1, genre, type ); /* added to debug KTH DiVA */
+			return type;
 		} else if ( !strcasecmp( genre, "book" ) ) {
 		  if ( level==0 ) {
 		    type = TYPE_BOOK;
