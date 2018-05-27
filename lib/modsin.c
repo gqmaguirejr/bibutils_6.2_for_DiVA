@@ -1225,10 +1225,61 @@ modsin_recordinfo( xml *node, fields *info, int level )
 		if ( xml_tagexact( curr, "recordIdentifier" ) && xml_hasvalue( curr ) ) {
 			d = xml_value( curr );
 			fstatus = fields_add( info, "REFNUM", d, level );
-			if ( fstatus!=FIELDS_OK ) return BIBL_ERR_MEMERR;
+			if ( fstatus!=FIELDS_OK ) goto ro;
 		}
 		curr = curr->next;
 	}
+ ro:
+	/* extract recordOrigin */
+	curr = node;
+	while ( curr ) {
+		if ( xml_tagexact( curr, "recordOrigin" ) && xml_hasvalue( curr ) ) {
+			d = xml_value( curr );
+			Da1 fprintf( stderr, "GQMJr::modsin_recordinfo recordOrigin=%s\n", d);
+
+			fstatus = fields_add( info, "recordOrigin", d, level );
+			if ( fstatus!=FIELDS_OK ) goto rcs;
+		}
+		curr = curr->next;
+	}
+
+ rcs:
+	/* extract recordContentSource */
+	curr = node;
+	while ( curr ) {
+		if ( xml_tagexact( curr, "recordContentSource" ) && xml_hasvalue( curr ) ) {
+			d = xml_value( curr );
+			fstatus = fields_add( info, "recordContentSource", d, level );
+			if ( fstatus!=FIELDS_OK ) goto rcd;
+		}
+		curr = curr->next;
+	}
+
+ rcd:
+	/* extract recordCreationDate */
+	curr = node;
+	while ( curr ) {
+		if ( xml_tagexact( curr, "recordCreationDate" ) && xml_hasvalue( curr ) ) {
+			d = xml_value( curr );
+			fstatus = fields_add( info, "recordCreationDate", d, level );
+			if ( fstatus!=FIELDS_OK ) goto rchd;
+		}
+		curr = curr->next;
+	}
+
+ rchd:
+	/* extract recordChangeDate */
+	curr = node;
+	while ( curr ) {
+		if ( xml_tagexact( curr, "recordChangeDate" ) && xml_hasvalue( curr ) ) {
+			d = xml_value( curr );
+			fstatus = fields_add( info, "recordChangeDate", d, level );
+			if ( fstatus!=FIELDS_OK ) goto out;
+		}
+		curr = curr->next;
+	}
+
+ out:
 	return BIBL_OK;
 }
 
