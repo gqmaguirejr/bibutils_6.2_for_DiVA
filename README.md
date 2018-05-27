@@ -12,7 +12,7 @@ previously handled by modsin (including a number of additional MARC roles) -
 for further documentation see Kungliga biblioteket/National Library of Sweden, "[SwePub MODS metadata format specification](http://www.kb.se/dokument/SwePub/v.-2.6-SwePub_MODS_Final_version_2015_09_10.pdf)",
 Version 2.6, Datum/Date: 2015-09-10, Dnr/Reference no: 1.4.1-2015-822; details
 of the DiVA records can be found at Stefan Andersson,
-Formatspecifikation](https://wiki.epc.ub.uu.se/display/divainfo/Formatspecifikation),
+[Formatspecifikation](https://wiki.epc.ub.uu.se/display/divainfo/Formatspecifikation),
 last modified by Marie Sörensen on Apr 09, 2018.
 
 
