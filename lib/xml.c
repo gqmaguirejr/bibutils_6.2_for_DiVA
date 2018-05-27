@@ -365,6 +365,14 @@ xml_hasattrib( xml *node, char *attrib, char *value )
 	return 0;
 }
 
+/* 
+ * Check it a node has an element with a specific attribute (attrib) with a given value.
+ *
+ * Example:
+ *     	abbr = xml_tag_attrib( node, "titleInfo", "type", "abbreviated" );
+ * or
+ *      if ( xml_tag_attrib( node, "namePart", "type", "family" ) ) { }
+ */
 int
 xml_tag_attrib( xml *node, char *s, char *attrib, char *value )
 {
@@ -372,6 +380,16 @@ xml_tag_attrib( xml *node, char *s, char *attrib, char *value )
 	return xml_hasattrib( node, attrib, value );
 }
 
+/* 
+ * Get the attribute of an element as a pointer to a str
+ *
+ * Example:
+ * 	str_init(&language);
+ *	lp = xml_getattrib(node, "lang");
+ *	if ( lp ) {
+ *	  str_strcpy( &language, lp );
+ *
+ */
 str *
 xml_getattrib( xml *node, char *attrib )
 {

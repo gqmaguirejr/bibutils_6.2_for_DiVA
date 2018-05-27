@@ -126,6 +126,12 @@ str_initstrsc( str *s, ... )
 	va_end( ap );
 }
 
+/*
+ * Initialized a list of str structures.
+ * 
+ * Example:
+ *     strs_init( &allpeople, &oneperson, NULL );
+ */
 void
 strs_init( str *s, ... )
 {
@@ -191,6 +197,12 @@ str_new( void )
 	return s;
 }
 
+/*
+ * Free a single str structure.
+ * 
+ * Example:
+ *     strs_free( &allpeople );
+ */
 void 
 str_free( str *s )
 {
@@ -204,6 +216,12 @@ str_free( str *s )
 	s->data = NULL;
 }
 
+/*
+ * Free a list of str structures.
+ * 
+ * Example:
+ *     strs_free( &allpeople, &oneperson, NULL );
+ */
 void
 strs_free( str *s, ... )
 {
@@ -287,6 +305,12 @@ str_addutf8( str *s, const char *p )
 	return p;
 }
 
+/* 
+ * Return the C string from a str
+ *
+ * Example:
+ *     str_cstr( &keywords )
+ */
 char *
 str_cstr( str *s )
 {
@@ -340,6 +364,12 @@ str_strcat_internal( str *s, const char *addstr, unsigned long n )
 	s->data[s->len]='\0';
 }
 
+/* 
+ * Add a str "from" to the end of a str "s".
+ *
+ * Example:
+ *     str_strcat( &allpeople, fields_value( in, i, FIELDS_STRP ) );
+ */
 void
 str_strcat( str *s, str *from )
 {
@@ -348,6 +378,12 @@ str_strcat( str *s, str *from )
 	else str_strcat_internal( s, from->data, from->len );
 }
 
+/* 
+ * Add a C string to the end of a str.
+ *
+ * Example:
+ *     str_strcatc( &keywords, "; " );
+ */
 void
 str_strcatc( str *s, const char *from )
 {
@@ -544,6 +580,9 @@ str_segdel( str *s, char *p, char *q )
 
 /*
  * str_findreplace()
+ * 
+ * After finding the C string find in str s, replace it with the C string replace.
+ * Destructively modifies s. 
  *
  *   if replace is "" or NULL, then delete find
  */
@@ -914,6 +953,11 @@ str_strcasecmpc( const str *s, const char *t )
 	return strcasecmp( s->data, t );
 }
 
+/* 
+ * locate a substring in str structures
+ *
+ * Note that the first argument "s" is the str to search, while "t" is the needle to find.
+ */
 char *
 str_strstr( const str *s, const str *t )
 {

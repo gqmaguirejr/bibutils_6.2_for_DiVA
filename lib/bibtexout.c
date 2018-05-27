@@ -1409,7 +1409,6 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int *stat
   int swe_found = 0;
   int found = 0;
   char *field_value;
-  int k;
 
   extended_intag[0]='\0';
 
@@ -1442,12 +1441,7 @@ append_note_level( fields *in, char *intag, char *outtag, fields *out, int *stat
 	fields_setused( in, i );
 	field_value=fields_value( in, i, FIELDS_CHRP );
 	Da1 fprintf( stderr, "GQMJr::append_note_level field_value = %s\n", field_value); /* added to debug KTH DiVA */
-#ifdef NEVER
-	for (k=0; k<strlen(field_value); k++) {
-	  Da3 fprintf( stderr, "GQMJr::append_note_level field_value[%d]=%d\n", k, (int)field_value[k]); /* added to debug KTH DiVA */
-	}
 
-#endif
 	if ((lang & BIBL_LANGUAGE_ENGLISH )) {
 	  for ( j=0; j<ntranslate_level && swe_found==0; j++ ) {
 	    Da1 fprintf( stderr, "GQMJr::append_note_level swetex = %s and eng = %s\n", translate_level[j].swetex, translate_level[j].eng); /* added to debug KTH DiVA */

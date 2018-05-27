@@ -104,6 +104,13 @@ fields_realloc( fields *f )
 	return FIELDS_OK;
 }
 
+
+/* 
+ * Add a field value into the set of output fields, with the indicated tag.
+ *
+ * Example:
+ *      fstatus = fields_add( out, outtag, str_cstr( field_value), LEVEL_MAIN );
+ */
 int
 _fields_add( fields *f, char *tag, char *data, int level, int mode )
 {
@@ -326,6 +333,8 @@ fields_num( fields *f )
  * a static null string as the data field could be new due to
  * the way str handles initialized strings with no data.
  *
+ * Note that mode FIELDS_CHRP causes the function to return a pointer to C string,
+ * while mode FIELDS_STRP causes the function to return a pointers to a str.
  */
 
 void *
@@ -351,6 +360,15 @@ fields_value( fields *f, int n, int mode )
 	}
 }
 
+/*
+ * Return the nth tag in a set of fields
+ *
+ * Note that mode FIELDS_CHRP causes the function to return a pointer to C string,
+ * while mode FIELDS_STRP causes the function to return a pointers to a str.
+ *
+ * Example:
+ *     tag   = ( char * ) fields_tag( out, j, FIELDS_CHRP );
+ */
 void *
 fields_tag( fields *f, int n, int mode )
 {
@@ -452,6 +470,30 @@ fields_findv_each_add( fields *f, int mode, int n, vplist *a )
 	}
 }
 
+/* 
+ * Find all of the elements in the fields that have a given tab.
+ * Then one can iterate over these elements.
+ * 
+ * Example:
+ *   str keywords, *word;
+ *   vplist_index i;
+ *   vplist a;
+ *
+ *   str_init( &keywords );
+ *   vplist_init( &a );
+ *   fields_findv_each( in, LEVEL_ANY, FIELDS_STRP, &a, "KEYWORD:EN" );
+ *   if ( a.n ) {
+ *      for ( i=0; i<a.n; ++i ) {
+ *	   word = vplist_get( &a, i );
+ *         if ( i>0 ) str_strcatc( &keywords, "; " );
+ *         str_strcat( &keywords, word );
+ *	}
+ *  <<do something with the str of keywords>>
+ *   }
+ *
+ * Note that mode FIELDS_CHRP causes the function to return a pointer to C string,
+ * while mode FIELDS_STRP causes the function to return a pointers to a str.
+ */
 void
 fields_findv_each( fields *f, int level, int mode, vplist *a, char *tag )
 {
