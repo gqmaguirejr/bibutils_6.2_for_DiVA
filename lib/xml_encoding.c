@@ -58,12 +58,6 @@ xml_getencoding( str *s )
 	xml descriptxml;
 	char *p, *q;
 
-	/* Added for KTH DivA */
-	p = strstr( str_cstr( s ), "<mods");
-	if (p) {
-	  return CHARSET_UNICODE;
-	}
-
 	p = strstr( str_cstr( s ), "<?xml" );
 	if ( !p ) p = strstr( str_cstr( s ), "<?XML" );
 	if ( p ) {

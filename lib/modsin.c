@@ -1608,7 +1608,7 @@ modsin_readf( FILE *fp, char *buf, int bufsize, int *bufpos, str *line, str *ref
 
 	str_free( &tmp );
 	*fcharset = file_charset;
-	Da1 fprintf( stderr, "GQMJr::modsin_readf file_charset=%d\n", file_charset); /* added to debug KTH DiVA */
+	Da3 fprintf( stderr, "GQMJr::modsin_readf file_charset=%d\n", file_charset); /* added to debug KTH DiVA */
 	return ( reference->len > 0 );
 }
 
